@@ -94,8 +94,6 @@ class KeyStoreService(BaseService):
 				result = put(self.data, payloadParams['key'], payloadParams['value'])
 				if result == codes.ERR_KEY_NOT_RESPONSIBLE or result == codes.ERR_KEY_ALREADY_EXISTS:
 					res['status'] = str(result.name)
-				else:
-					res['data'] = str(result.name)
 
 			elif payloadType == 'REPLICA':
 				res['data'] = json.dumps(self.data)	

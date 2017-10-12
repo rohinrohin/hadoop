@@ -10,7 +10,7 @@ from autobahn.twisted.websocket import WebSocketClientFactory, \
 import json
 
 
-class EchoClientProtocol(WebSocketClientProtocol):
+class ClientProtocol(WebSocketClientProtocol):
 
 	def sendHello(self):
 		testput = {
@@ -53,9 +53,13 @@ class EchoClientProtocol(WebSocketClientProtocol):
 			}
 		elif method == "put":
 			value = ''.join(request[2:])
+			if value[0] == '{':
+				value = literal_eval(value)
+			else: 
+				value = value.strip()
 			params = {
 				"key": request[1],
-				"value": ast.literal_eval(value)
+				"value": value
 			}
 		elif method == "getmultiple":
 			params = {
@@ -77,13 +81,13 @@ class EchoClientProtocol(WebSocketClientProtocol):
 
 	def onMessage(self, payload, isBinary):
 		if not isBinary:
-			print("Text message received: {}".format(payload.decode('utf8')))
-		#reactor.callLater(1, self.sendHello)
+			print("RESPONSE: {}".format(payload.decode('utf8')))
+		reactor.callLater(1, self.sendHello)
 
 
-class EchoClientFactory(WebSocketClientFactory):
+class ClientFactory(WebSocketClientFactory):
 
-	protocol = EchoClientProtocol
+	protocol = ClientProtocol
 
 	def clientConnectionLost(self, connector, reason):
 		print(reason)
@@ -100,7 +104,7 @@ if __name__ == '__main__':
 		print("Need the WebSocket server address, i.e. ws://127.0.0.1:9000/echo1")
 		sys.exit(1)
 
-	factory = EchoClientFactory(sys.argv[1])
+	factory = ClientFactory(sys.argv[1])
 	connectWS(factory)
 
 	reactor.run()
