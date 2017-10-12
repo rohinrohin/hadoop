@@ -61,6 +61,7 @@ class BaseService:
 class KeyStoreService(BaseService):
 	
 	data = {}
+
 	def onMessage(self, payload, isBinary):
 		if not isBinary:
 			payload = json.loads(payload.decode('utf-8'))
@@ -68,28 +69,39 @@ class KeyStoreService(BaseService):
 			payloadType = payload['type'].upper()
 			payloadParams = payload['params']
 			res = {
-				'status': str(codes.SUCCESS.name)
+				'status': str(codes.SUCCESS.name).lower()
 			} 
+
 			if payloadType == 'GET':
 				result = get(self.data, payloadParams['key'])
-				print("recieved get" + payloadParams['key'])
 				print(result)
 				if result == codes.ERR_KEY_NOT_FOUND:
 					res['status'] = str(result.name)
 				else: 
 					res['data'] = result
+
+			if payloadType == 'GETMULTIPLE':
+				result = {}
+				for key in payloadParams['keys']:
+					temp = get(self.data, key)
+					if temp == codes.ERR_KEY_NOT_RESPONSIBLE or temp == codes.ERR_KEY_ALREADY_EXISTS:
+						result[key] = str(temp.name)	
+					else: 	
+						result[key] = temp
+					res['data'] = json.dumps(result)	
+			
 			elif payloadType == 'PUT':
-				print("recieved put: " + str(payload))
-				print(self.data)
 				result = put(self.data, payloadParams['key'], payloadParams['value'])
 				if result == codes.ERR_KEY_NOT_RESPONSIBLE or result == codes.ERR_KEY_ALREADY_EXISTS:
 					res['status'] = str(result.name)
 				else:
 					res['data'] = str(result.name)
+
+			elif payloadType == 'REPLICA':
+				res['data'] = json.dumps(self.data)	
 				
-			print(res)
 			msg = json.dumps(res)
-			print(msg)
+			print("SERVER SENT: " + msg)
 			self.proto.sendMessage(msg.encode('utf8'))
 
 class MasterService(KeyStoreService):
@@ -101,9 +113,11 @@ class MasterService(KeyStoreService):
 			msg = str(self.data) + "Echo master handler - {}".format(payload.decode('utf8'))
 			print(msg)
 			self.proto.sendMessage(msg.encode('utf8'))
+
 class BackupKeyStoreService(BaseService):
 
 	data = {} 
+
 	def onMessage(self, payload, isBinary):
 		if not isBinary:
 			msg = "Echo 2 - {}".format(payload.decode('utf8'))

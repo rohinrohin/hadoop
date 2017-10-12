@@ -20,30 +20,50 @@ class EchoClientProtocol(WebSocketClientProtocol):
 						"value": "world"
 				}
 		}
+		testput2 = {
+				"type": "put",
+				"params": {
+						"key": "hello1",
+						"value": "world1"
+				}
+		}
+
 		testget = {
 				"type": "get",
 				"params": {
 						"key": "hello"
 				}
 		}
-		request = input().split()
-		if len(request) > 3:
-			request = [request[0],request[1],''.join(request[2:])]
-		method, params = request[0].lower(), ""
-		if method == "get":
-			params = {
-				"key": request[1]
-			}
-		elif method == "put":
-			params = {
-				"key": request[1],
-				"value": ast.literal_eval(request[2])
-			}
-		message = {
-			"type": method.lower(),
-			"params": params
+
+		testmultiple = {
+				"type": "getmultiple",
+				"params": {
+						"keys": ["hello", "hello1"] 
+				}
 		}
-		print(json.dumps(message))
+
+		#request = input().split()
+		#if len(request) > 3:
+		#	# hack to allow spaces in json value input
+		#	request = [request[0],request[1],''.join(request[2:])]
+		#method, params = request[0].lower(), ""
+		#if method == "get":
+		#	params = {
+		#		"key": request[1]
+		#	}
+		#elif method == "put":
+		#	params = {
+		#		"key": request[1],
+		#		"value": ast.literal_eval(request[2])
+		#	}
+		#message = {
+		#	"type": method.lower(),
+		#	"params": params
+		#}
+		message = testmultiple
+		print(json.dumps(testmultiple))
+		self.sendMessage(json.dumps(testput).encode('utf8'))
+		self.sendMessage(json.dumps(testput2).encode('utf8'))
 		self.sendMessage(json.dumps(message).encode('utf8'))
 		#self.sendMessage(json.dumps(testput).encode('utf8'))
 		#self.sendMessage(json.dumps(testget).encode('utf8'))
