@@ -38,7 +38,7 @@ class EchoClientProtocol(WebSocketClientProtocol):
 		testmultiple = {
 				"type": "getmultiple",
 				"params": {
-						"keys": ["hello", "hello1"] 
+						"keys": ["hello", "hello1", "testfail"] 
 				}
 		}
 
@@ -77,7 +77,7 @@ class EchoClientProtocol(WebSocketClientProtocol):
 	def onMessage(self, payload, isBinary):
 		if not isBinary:
 			print("Text message received: {}".format(payload.decode('utf8')))
-		reactor.callLater(1, self.sendHello)
+		#reactor.callLater(1, self.sendHello)
 
 
 class EchoClientFactory(WebSocketClientFactory):

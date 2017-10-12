@@ -84,7 +84,7 @@ class KeyStoreService(BaseService):
 				result = {}
 				for key in payloadParams['keys']:
 					temp = get(self.data, key)
-					if temp == codes.ERR_KEY_NOT_RESPONSIBLE or temp == codes.ERR_KEY_ALREADY_EXISTS:
+					if temp == codes.ERR_KEY_NOT_FOUND:
 						result[key] = str(temp.name)	
 					else: 	
 						result[key] = temp
