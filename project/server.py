@@ -88,7 +88,7 @@ class KeyStoreService(BaseService):
 						result[key] = str(temp.name)	
 					else: 	
 						result[key] = temp
-					res['data'] = json.dumps(result)	
+					res['data'] = result	
 			
 			elif payloadType == 'PUT':
 				result = put(self.data, payloadParams['key'], payloadParams['value'])
