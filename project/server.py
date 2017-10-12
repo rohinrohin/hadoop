@@ -64,29 +64,31 @@ class KeyStoreService(BaseService):
 	def onMessage(self, payload, isBinary):
 		if not isBinary:
 			payload = json.loads(payload.decode('utf-8'))
+			print("SERVER RECIEVED: " + str(payload))
 			payloadType = payload['type'].upper()
 			payloadParams = payload['params']
 			res = {
-				'status': codes.SUCCESS.name
+				'status': str(codes.SUCCESS.name)
 			} 
 			if payloadType == 'GET':
 				result = get(self.data, payloadParams['key'])
-				print("recieved get"+payloadParams['key'])
+				print("recieved get" + payloadParams['key'])
 				print(result)
 				if result == codes.ERR_KEY_NOT_FOUND:
-					res['status'] = result.name
+					res['status'] = str(result.name)
 				else: 
 					res['data'] = result
 			elif payloadType == 'PUT':
-				print("recieved put")
+				print("recieved put: " + str(payload))
 				print(self.data)
 				result = put(self.data, payloadParams['key'], payloadParams['value'])
 				if result == codes.ERR_KEY_NOT_RESPONSIBLE or result == codes.ERR_KEY_ALREADY_EXISTS:
-					res['status'] = result.name
+					res['status'] = str(result.name)
 				else:
-					res['data'] = result
+					res['data'] = str(result.name)
 				
-			msg = str(self.data) + "KeyStore Recieved - {}".format(str(payload))
+			print(res)
+			msg = json.dumps(res)
 			print(msg)
 			self.proto.sendMessage(msg.encode('utf8'))
 

@@ -1,4 +1,5 @@
 import sys
+import ast
 
 from twisted.internet import reactor
 from twisted.python import log
@@ -12,7 +13,6 @@ import json
 class EchoClientProtocol(WebSocketClientProtocol):
 
 	def sendHello(self):
-		#self.sendMessage(str(json.dumps({'hello': 'world'})))
 		testput = {
 				"type": "put",
 				"params": {
@@ -26,8 +26,15 @@ class EchoClientProtocol(WebSocketClientProtocol):
 						"key": "hello"
 				}
 		}
-		self.sendMessage(json.dumps(testput).encode('utf8'))
-		self.sendMessage(json.dumps(testget).encode('utf8'))
+		method, params = input().split()
+		message = {
+			"type": method.lower(),
+			"params": ast.literal_eval(params)
+		}
+		print(json.dumps(message))
+		self.sendMessage(json.dumps(message).encode('utf8'))
+		#self.sendMessage(json.dumps(testput).encode('utf8'))
+		#self.sendMessage(json.dumps(testget).encode('utf8'))
 
 	def onOpen(self):
 		self.sendHello()
