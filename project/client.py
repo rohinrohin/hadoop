@@ -26,10 +26,22 @@ class EchoClientProtocol(WebSocketClientProtocol):
 						"key": "hello"
 				}
 		}
-		method, params = input().split()
+		request = input().split()
+		if len(request) > 3:
+			request = [request[0],request[1],''.join(request[2:])]
+		method, params = request[0].lower(), ""
+		if method == "get":
+			params = {
+				"key": request[1]
+			}
+		elif method == "put":
+			params = {
+				"key": request[1],
+				"value": ast.literal_eval(request[2])
+			}
 		message = {
 			"type": method.lower(),
-			"params": ast.literal_eval(params)
+			"params": params
 		}
 		print(json.dumps(message))
 		self.sendMessage(json.dumps(message).encode('utf8'))
