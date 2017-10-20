@@ -4,7 +4,7 @@ Distributed Key Value project built for Big Data 2017
 ## Requirements
  - python 3.5
  - twisted (`pip install twisted`)
- - autobahn ('pip install autobahn')
+ - autobahn (`pip install autobahn`)
  
 ## Modes
  - Master Mode (inherits from KeyStore Mode)
