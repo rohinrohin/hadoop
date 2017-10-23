@@ -69,7 +69,7 @@ class KeyStoreService(BaseService):
 			payloadType = payload['type'].upper()
 			payloadParams = payload['params']
 			res = {
-				'status': str(codes.SUCCESS.name).lower()
+				'status': str(codes.SUCCESS.name)
 			} 
 
 			if payloadType == 'GET':
