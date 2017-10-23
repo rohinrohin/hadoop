@@ -8,6 +8,7 @@ import json
 from enum import Enum
 from kazoo.client import KazooClient
 import time
+from websocket import create_connection
 
 # helpers
 
@@ -224,13 +225,21 @@ if __name__ == '__main__':
 			#	keyRanges
 
 
-			MasterService.keymapping =
+			#MasterService.keymapping =
 
 	else:
 		print("SLAVE")
 		portno, _ = zk.get('/meta/lastport')
 		portno = int(portno.decode('utf-8')) + 1
 		zk.set('/meta/lastport', str(portno).encode())
+		ws = create_connection("ws://127.0.0.1:%s" % str(portno))
+		print("SLAVE: WAITING FOR SIGNAL ON %s" % str(portno))
+		result =  ws.recv()
+		result = json.loads(result)
+		if result["status"] == codes.READY.name:
+			KeyStoreService.keyRange = result["data"]
+		print("SLAVE: READY FOR KEYRANGE " + result["data"])
+		ws.close()
 
 
 	factory = WebSocketServerFactory(u"ws://127.0.0.1:%s" % str(portno))
