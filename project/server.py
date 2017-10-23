@@ -6,6 +6,8 @@ from autobahn.twisted.websocket import WebSocketServerFactory, \
 from autobahn.websocket.types import ConnectionDeny
 import json
 from enum import Enum
+from kazoo.client import KazooClient
+import time
 
 # helpers
 
@@ -14,32 +16,32 @@ class codes(Enum):
 	FAIL = 2
 	ERR_KEY_ALREADY_EXISTS = 3
 	ERR_KEY_NOT_RESPONSIBLE = 4
-	ERR_KEY_NOT_FOUND = 5 
+	ERR_KEY_NOT_FOUND = 5
 
-def get_multiple(data, keys): 
+def get_multiple(data, keys):
 	resp = {}
-	for key in keys: 
+	for key in keys:
 		if key in data:
 			resp[key] = data[key]
-		else: 
+		else:
 			resp[key] = "ERR_KEY_NOT_FOUND"
 	return resp
-		
+
 def get(data, key):
 	if key in data:
 		return data[key]
-	else: 
-		return codes.ERR_KEY_NOT_FOUND 
+	else:
+		return codes.ERR_KEY_NOT_FOUND
 
-def put(data, key, value): 
-	if False: 
+def put(data, key, value):
+	if False:
 		#todo: key-server mapping check
-		return codes.ERR_KEY_NOT_RESPONSIBLE 
+		return codes.ERR_KEY_NOT_RESPONSIBLE
 	elif key in data:
-		return codes.ERR_KEY_ALREADY_EXISTS 
+		return codes.ERR_KEY_ALREADY_EXISTS
 
 	data[key] = value
-	return codes.SUCCESS 
+	return codes.SUCCESS
 
 # helpers end
 
@@ -59,7 +61,7 @@ class BaseService:
 		pass
 
 class KeyStoreService(BaseService):
-	
+
 	data = {}
 
 	def onMessage(self, payload, isBinary):
@@ -70,41 +72,46 @@ class KeyStoreService(BaseService):
 			payloadParams = payload['params']
 			res = {
 				'status': str(codes.SUCCESS.name).lower()
-			} 
+			}
 
 			if payloadType == 'GET':
 				result = get(self.data, payloadParams['key'])
 				print(result)
 				if result == codes.ERR_KEY_NOT_FOUND:
 					res['status'] = str(result.name)
-				else: 
+				else:
 					res['data'] = result
 
-			if payloadType == 'GETMULTIPLE':
+			elif payloadType == 'GETMULTIPLE':
 				result = {}
 				for key in payloadParams['keys']:
 					temp = get(self.data, key)
 					if temp == codes.ERR_KEY_NOT_FOUND:
-						result[key] = str(temp.name)	
-					else: 	
+						result[key] = str(temp.name)
+					else:
 						result[key] = temp
-					res['data'] = result	
-			
+					res['data'] = result
+
 			elif payloadType == 'PUT':
 				result = put(self.data, payloadParams['key'], payloadParams['value'])
 				if result == codes.ERR_KEY_NOT_RESPONSIBLE or result == codes.ERR_KEY_ALREADY_EXISTS:
 					res['status'] = str(result.name)
 
 			elif payloadType == 'REPLICA':
-				res['data'] = json.dumps(self.data)	
-				
+				res['data'] = self.data
+
+			else:
+				res['status'] = str(codes.FAIL.name)
+				res['data'] = "Operation not permitted"
+
 			msg = json.dumps(res)
 			print("SERVER SENT: " + msg)
 			self.proto.sendMessage(msg.encode('utf8'))
 
-class MasterService(KeyStoreService):
-	
+class MasterService(BaseService):
+
 	metadata = {}
+	data = {}
 
 	def onMessage(self, payload, isBinary):
 		if not isBinary:
@@ -114,7 +121,7 @@ class MasterService(KeyStoreService):
 
 class BackupKeyStoreService(BaseService):
 
-	data = {} 
+	data = {}
 
 	def onMessage(self, payload, isBinary):
 		if not isBinary:
@@ -127,7 +134,7 @@ class ServiceServerProtocol(WebSocketServerProtocol):
 
 	SERVICEMAP = {
 		'/master': MasterService,
-		'/keystore': KeyStoreService, 
+		'/keystore': KeyStoreService,
 		'/backup': BackupKeyStoreService
 	}
 
@@ -163,7 +170,7 @@ class ServiceServerProtocol(WebSocketServerProtocol):
 	def onMessage(self, payload, isBinary):
 		if type(self.service).__name__ == 'MasterService':
 			self.service.onMessage(payload, isBinary)
-		elif self.service: 
+		elif self.service:
 			self.service.onMessage(payload, isBinary)
 
 	def onClose(self, wasClean, code, reason):
@@ -173,7 +180,60 @@ class ServiceServerProtocol(WebSocketServerProtocol):
 
 if __name__ == '__main__':
 
-	factory = WebSocketServerFactory(u"ws://127.0.0.1:9000")
+	zk = KazooClient(hosts='192.168.31.233:2181')
+	zk.start()
+
+	import logging
+	logging.basicConfig()
+
+	currInstance = zk.create('/app/instance', ephemeral=True, sequence=True, makepath=True)
+	print(currInstance, " started. ")
+
+	children = zk.get_children('/app')
+	print(children)
+
+	portno = 0
+
+	if len(children) == 1:
+			portno = 8080
+			print("SERVER")
+			if zk.exists('/meta'):
+				zk.delete('/meta', recursive=True)
+
+			zk.create('/meta/master',b'8080', makepath=True)
+			zk.create('/meta/status',b'initializing', makepath=True)
+			zk.create('/meta/lastport','8080'.encode('utf-8'), makepath=True)
+			time.sleep(20)
+			children = zk.get_children('/app')
+			config = {
+				"lastDead": {
+					"backup": -1,
+					# backup is the server port who's data the dead server needs to backuo
+					"keystore": -1
+					# keystore is the server who's '/backup it has to read from
+				},
+				"numOfServers": len(children)
+			}
+			zk.create('/meta/config', json.dumps(config).encode('utf-8'))
+			print('Server init')
+			print(children)
+			totalKeyRange = 122 - 48 + 1
+			individualRange = totalKeyRange / len(children)
+			keyRanges = []
+			#for i in range(totalKeyRange/individualRange):
+			#	keyRanges
+
+
+			MasterService.keymapping =
+
+	else:
+		print("SLAVE")
+		portno, _ = zk.get('/meta/lastport')
+		portno = int(portno.decode('utf-8')) + 1
+		zk.set('/meta/lastport', str(portno).encode())
+
+
+	factory = WebSocketServerFactory(u"ws://127.0.0.1:%s" % str(portno))
 	factory.protocol = ServiceServerProtocol
 	listenWS(factory)
 

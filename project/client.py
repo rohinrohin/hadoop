@@ -54,7 +54,7 @@ class ClientProtocol(WebSocketClientProtocol):
 		elif method == "put":
 			value = ''.join(request[2:])
 			if value[0] == '{':
-				value = literal_eval(value)
+				value = ast.literal_eval(value)
 			else: 
 				value = value.strip()
 			params = {
@@ -65,6 +65,7 @@ class ClientProtocol(WebSocketClientProtocol):
 			params = {
 				"keys": request[1:]
 			}
+
 		message = {
 			"type": method.lower(),
 			"params": params

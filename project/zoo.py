@@ -1,8 +1,9 @@
 from kazoo.client import KazooClient 
 import os 
 import time
+import json
 
-zk = KazooClient(hosts='127.0.0.1:2181') 
+zk = KazooClient(hosts='192.168.31.233:2181') 
 zk.start() 
 
 import logging 
@@ -12,19 +13,27 @@ currInstance = zk.create('/app/instance', ephemeral=True, sequence=True, makepat
 print(currInstance, " started. ") 
 
 children = zk.get_children('/app')
+print(children)
 
 if len(children) == 1:
-        zk.create('/app/config/master',b'8080', makepath=True)
-        zk.create('/app/config/lastport',b'8080', makepath=True)
-        zk.create('/app/config/status',b'initializing', makepath=T)
+        print("SERVER")
+        if zk.exists('/meta'):
+            zk.delete('/meta', recursive=True)
+
+        zk.create('/meta/master',b'8080', makepath=True)
+        zk.create('/meta/status',b'initializing', makepath=True)
+        zk.create('/meta/lastport',b'8080', makepath=True)
         time.sleep(20)
         children = zk.get_children('/app')
-        if len(children) > 2:
-                print('Server init')
-                print(children)
+        config = {
+            "lastDead": -1, 
+            "numOfServers": len(children)
+        }
+        zk.create('/meta/config', json.dumps(config).encode('utf-8'))
+        print('Server init')
+        print(children)
 
-persistList = list() 
-
+#persistList = list() 
 #@zk.ChildrenWatch("/") 
 #def watch_children(children): 
        #global persistList 
