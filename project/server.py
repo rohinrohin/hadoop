@@ -220,12 +220,27 @@ if __name__ == '__main__':
 			print(children)
 			totalKeyRange = 122 - 48 + 1
 			individualRange = totalKeyRange / len(children)
-			keyRanges = []
-			#for i in range(totalKeyRange/individualRange):
-			#	keyRanges
+			ranges = []
+			start = 48
+			for i in range(len(children)):
+				ranges.append(str(start) + "-" + str(start+individualRange))
+				start = start + individualRange + 1
+			ranges[-1] = ranges[-1].split("-")[0] + "-122" # change this later please
+			print(ranges)
+			MasterService.keyRange = ranges[0]
 
+			portno, _ = zk.get('/meta/lastport')
+			portno = int(portno.decode('utf-8'))
+			for port in range(8081, portno + 1):
+				MasterService.keyRanges[ranges[port - 8080]] = port
+				signal = {
+					"status": "ready",
+					"data": ranges[port - 8080]
+				}
+				ws = create_connection("ws://127.0.0.1:%s/config" % str(port))
+				print('Sending to port %s' % str(port))
+				ws.send(json.dumps(signal))
 
-			#MasterService.keymapping =
 
 	else:
 		print("SLAVE")
