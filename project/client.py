@@ -40,6 +40,9 @@ def connect_to_server(port_num):
     #if len(request) > 3:
         # hack to allow spaces in json value input
     #	request = [request[0],request[1],''.join(request[2:])]
+    print(request[0])
+    print(request[1])
+    #print(request[2])
     method, params = request[0].lower(), ""
     if method == "get":
         params = {
@@ -69,23 +72,26 @@ def connect_to_server(port_num):
     print("Sent")
     print("Receiving...")
     result =  ws.recv()
-    #print(result)
     result = json.loads(result)
-    #print(result["status"])
+    print(request[1])
+    print("999999")
     print ("Server returned ",result["status"])
+    #print(client_cache[request[1]])
     if(method=='get'):
-		#this part is to be worked on.
-        for i in client_cache:
-            if(client_cache[i]==result["data"]):
+        listCacheKeys=list(client_cache.keys())
+        for i in listCacheKeys:
+            if i==(request[1]):
                 print("recieved locally without master")
-                print("cache returned:",client_cache[i])
+                #value=client_cache[]
+                print("cache returned:",)
         print ("Server returned data: ",result["data"])
 
     if(result['status']==codes.SUCCESS.name):
         client_cache[request[1]]=port_num
+        
 
 
-        print(client_cache)  #if the master contains the key. 9000 is the current static master address	
+        print(client_cache)  #if the master contains the key. 9001 is the current static master address	
     if(result['status'] == codes.ERR_KEY_NOT_RESPONSIBLE.name ):
         print("Contact port number "+result["data"])
         #ws.close()        
