@@ -3,6 +3,29 @@ import json
 import sys
 import ast
 from enum import Enum
+
+MASTER = "9001"
+
+from collections import OrderedDict
+
+class LimitedSizeDict(OrderedDict):
+  def __init__(self, *args, **kwds):
+    self.size_limit = kwds.pop("size_limit", None)
+    OrderedDict.__init__(self, *args, **kwds)
+    self._check_size_limit()
+
+  def __setitem__(self, key, value):
+    OrderedDict.__setitem__(self, key, value)
+    self._check_size_limit()
+
+  def _check_size_limit(self):
+    if self.size_limit is not None:
+      while len(self) > self.size_limit:
+        self.popitem(last=False)
+
+client_cache= LimitedSizeDict(size_limit=10)
+
+
 class codes(Enum):
 	SUCCESS = 1
 	FAIL = 2
@@ -51,7 +74,18 @@ def connect_to_server(port_num):
     #print(result["status"])
     print ("Server returned ",result["status"])
     if(method=='get'):
+		#this part is to be worked on.
+        for i in client_cache:
+            if(client_cache[i]==result["data"]):
+                print("recieved locally without master")
+                print("cache returned:",client_cache[i])
         print ("Server returned data: ",result["data"])
+
+    if(result['status']==codes.SUCCESS.name):
+        client_cache[request[1]]=port_num
+
+
+        print(client_cache)  #if the master contains the key. 9000 is the current static master address	
     if(result['status'] == codes.ERR_KEY_NOT_RESPONSIBLE.name ):
         print("Contact port number "+result["data"])
         #ws.close()        
@@ -60,7 +94,7 @@ def connect_to_server(port_num):
     ws.close()
 
 while(True):
-    connect_to_server("9000")
+    connect_to_server(MASTER)
     
     
 

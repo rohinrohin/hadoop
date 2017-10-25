@@ -173,7 +173,7 @@ class ServiceServerProtocol(WebSocketServerProtocol):
 
 if __name__ == '__main__':
 
-	factory = WebSocketServerFactory(u"ws://127.0.0.1:9000")
+	factory = WebSocketServerFactory(u"ws://127.0.0.1:9001")
 	factory.protocol = ServiceServerProtocol
 	listenWS(factory)
 
