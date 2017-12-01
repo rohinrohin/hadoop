@@ -1,0 +1,200 @@
+URL	ftp://217.219.170.14/Computer%20Group/Faani/vaset%20fani/second/sattari/word/2007/source/s%20crt.docx
+MENTION	vacuum tube	421	http://en.wikipedia.org/wiki/Vacuum_tube
+MENTION	vacuum tubes	10838	http://en.wikipedia.org/wiki/Vacuum_tube
+MENTION	electron gun	598	http://en.wikipedia.org/wiki/Electron_gun
+MENTION	fluorescent	790	http://en.wikipedia.org/wiki/Fluorescent
+MENTION	oscilloscope	1307	http://en.wikipedia.org/wiki/Oscilloscope
+MENTION	computer monitor	1503	http://en.wikipedia.org/wiki/Computer_monitor
+MENTION	computer monitors	3066	http://en.wikipedia.org/wiki/Computer_monitor
+MENTION	radar	1657	http://en.wikipedia.org/wiki/Radar
+MENTION	plasma screens	2162	http://en.wikipedia.org/wiki/Plasma_screen
+MENTION	liquid crystal displays	2349	http://en.wikipedia.org/wiki/Liquid_crystal_displays
+MENTION	television sets	2889	http://en.wikipedia.org/wiki/Television_set
+MENTION	raster	3326	http://en.wikipedia.org/wiki/Raster_scan
+MENTION	video signal	3575	http://en.wikipedia.org/wiki/Video_signal
+MENTION	static	5345	http://en.wikipedia.org/wiki/Static_electricity
+MENTION	dust	5684	http://en.wikipedia.org/wiki/Dust
+MENTION	flyback transformer	6334	http://en.wikipedia.org/wiki/Flyback_transformer
+MENTION	degaussing	8792	http://en.wikipedia.org/wiki/Degaussing
+MENTION	inverse square law	9999	http://en.wikipedia.org/wiki/Inverse_square_law
+MENTION	leaded glass	10614	http://en.wikipedia.org/wiki/Leaded_glass
+MENTION	barium	11009	http://en.wikipedia.org/wiki/Barium
+MENTION	cathode	11223	http://en.wikipedia.org/wiki/Cathode
+MENTION	getter	11372	http://en.wikipedia.org/wiki/Getter
+MENTION	United States Environmental Protection Agency	11923	http://en.wikipedia.org/wiki/United_States_Environmental_Protection_Agency
+MENTION	recycling	12195	http://en.wikipedia.org/wiki/Recycling
+MENTION	WEEE Directive	12724	http://en.wikipedia.org/wiki/WEEE_Directive
+MENTION	implosion	15606	http://en.wikipedia.org/wiki/Implosion_(mechanical_process)
+TOKEN	assemblies	11420
+TOKEN	potentially	15775
+TOKEN	us	17130
+TOKEN	then	7066
+TOKEN	causing	8281
+TOKEN	household	5874
+TOKEN	regularly	5794
+TOKEN	undesired	8293
+TOKEN	equipped	9140
+TOKEN	unless	5426
+
+
+URL	ftp://download.newport.com/MotionControl/Current/MotionControllers/XPS-Q8/Manual/XPS-Q8%20-%20TCL%20Manual.pdf
+MENTION	network protocol	158812	http://en.wikipedia.org/wiki/Network_protocol
+MENTION	in-band	159265	http://en.wikipedia.org/wiki/In-band_signaling
+MENTION	byte oriented	159443	http://en.wikipedia.org/wiki/Byte_oriented
+TOKEN	APIName	191931
+TOKEN	minus	152009
+TOKEN	stored	156019
+TOKEN	trick	111068
+TOKEN	mostly	33770
+TOKEN	Once	156752
+TOKEN	situations	110752
+TOKEN	extra	140303
+TOKEN	actual	46642
+TOKEN	observe	158167
+
+
+URL	ftp://ftp-fc.sc.egov.usda.gov/AR/intranet/Training/MoreThanCutAndPaste/Rock.doc
+MENTION	basalt	8345	http://en.wikipedia.org/wiki/Basalt
+TOKEN	corals	28677
+TOKEN	plutons	14535
+TOKEN	marble	32993
+TOKEN	measure	31058
+TOKEN	Typical	6694
+TOKEN	calculated	18325
+TOKEN	horizontal	32515
+TOKEN	periods	23597
+TOKEN	mode	10878
+TOKEN	addition	30437
+
+
+URL	ftp://ftp.avdsecurity.nl/Avermedia/Manuals/SA%20series%20manual.pdf
+MENTION	IP addresses	308550	http://en.wikipedia.org/wiki/IP_addresses
+TOKEN	printer	681513
+TOKEN	INTERRUPTION	711508
+TOKEN	RESOULTUIONS	13992
+TOKEN	Active	383252
+TOKEN	consumer	707821
+TOKEN	enlarging	415804
+TOKEN	checked	7635
+TOKEN	NOTE	3156
+TOKEN	Encryption	361563
+TOKEN	webViewer	485031
+
+
+URL	ftp://ftp.beckhoff.com/belgium/TwinCAT%20Cursus/Module%201%20-%20Introduction%20to%20TwinCAT.pdf
+MENTION	(Programmable Logic Controller)	159716	http://en.wikipedia.org/wiki/Programmable_logic_controller
+TOKEN	Visualizations	102117
+TOKEN	logging	98552
+TOKEN	particularly	65339
+TOKEN	introductory	104466
+TOKEN	Any	18644
+TOKEN	wet	152046
+TOKEN	ink	23050
+TOKEN	ACT	120773
+TOKEN	performed	64166
+TOKEN	removed	128167
+
+
+URL	ftp://ftp.beckhoff.com/belgium/TwinCAT%20Cursus/Module%202%20-%20Remote%20Connectivity.pdf
+MENTION	(Programmable Logic Controller)	84882	http://en.wikipedia.org/wiki/Programmable_logic_controller
+TOKEN	although	27457
+TOKEN	actual	31986
+TOKEN	extra	46996
+TOKEN	specified	73989
+TOKEN	selected	75125
+TOKEN	directly	33513
+TOKEN	Off	34394
+TOKEN	simply	62478
+TOKEN	GUI	81792
+TOKEN	installation	78711
+
+
+URL	ftp://ftp.ci.austin.tx.us/GIS-Data/Regional/coa_gis.html
+MENTION	ZIP	1330	http://en.wikipedia.org/wiki/ZIP_(file_format)
+MENTION	shapefile format	1661	http://en.wikipedia.org/wiki/Shapefile
+TOKEN	index	7931
+TOKEN	tax	5864
+TOKEN	note	2334
+TOKEN	upgrading	5977
+TOKEN	process	16296
+TOKEN	Landfill	43965
+TOKEN	use	1347
+TOKEN	Parks	39812
+TOKEN	Map	2547
+TOKEN	libraries	24336
+
+
+URL	ftp://ftp.cmdl.noaa.gov/ozwv/Irina/prog/ImageMagick-6.7.1-6/www/command-line-options.html
+MENTION	Shepards Method	158049	http://en.wikipedia.org/wiki/Shepard's_method
+MENTION	Fourier Transform	194511	http://en.wikipedia.org/wiki/Fourier_transform
+MENTION	Fourier Transform	234608	http://en.wikipedia.org/wiki/Fourier_transform
+MENTION	Complex Numbers	195376	http://en.wikipedia.org/wiki/Complex_numbers
+TOKEN	True	337545
+TOKEN	reasonably	252515
+TOKEN	AdobeExpert	178888
+TOKEN	highly	92359
+TOKEN	simplier	231286
+TOKEN	involve	307156
+TOKEN	Cosine	188353
+TOKEN	warp	159910
+TOKEN	diagrams	57761
+TOKEN	R	238756
+
+
+URL	ftp://ftp.cs.utexas.edu/pub/AI-Lab/tech-reports/UT-AI-TR-07-342.pdf
+MENTION	inistry of Silly Walks	395091	http://en.wikipedia.org/wiki/Ministry_of_silly_walks
+TOKEN	minimally	624819
+TOKEN	maneuvering	86250
+TOKEN	Numbers	943196
+TOKEN	NSF	939467
+TOKEN	evaluate	84691
+TOKEN	Art	943552
+TOKEN	kept	889407
+TOKEN	Libration	244672
+TOKEN	Poincare	420942
+TOKEN	duty	10170
+
+
+URL	ftp://ftp.dante.de/tex-archive/graphics/dot2tex/doc/usage.tex
+MENTION	CamelCase	32094	http://en.wikipedia.org/wiki/CamelCase
+TOKEN	mechanisms	11355
+TOKEN	Bypass	9330
+TOKEN	power	11769
+TOKEN	fdp	30155
+TOKEN	exception	39586
+TOKEN	Utf8	41520
+TOKEN	Document	33749
+TOKEN	comes	40663
+TOKEN	x2	19725
+TOKEN	saved	18000
+
+
+URL	ftp://ftp.dante.de/tex-archive/graphics/dot2tex/dot2tex.pdf
+MENTION	CamelCase	89448	http://en.wikipedia.org/wiki/CamelCase
+TOKEN	RGBA	88243
+TOKEN	achieve	111995
+TOKEN	power	26964
+TOKEN	Background	109795
+TOKEN	Binary	8581
+TOKEN	n_1	65119
+TOKEN	safely	6526
+TOKEN	most	90274
+TOKEN	gamma_3	49381
+TOKEN	understand	6790
+
+
+URL	ftp://ftp.dlink.pt/IPSurveillance/Trainings/IPCAM_TRAINING.pdf
+MENTION	light	91805	http://en.wikipedia.org/wiki/Light
+MENTION	photography	92022	http://en.wikipedia.org/wiki/Photography
+MENTION	magnification	92247	http://en.wikipedia.org/wiki/Magnification
+TOKEN	enclosure	47887
+TOKEN	UMTS	82040
+TOKEN	Higher	18400
+TOKEN	Outdoor	187207
+TOKEN	compatibility	63010
+TOKEN	SMTP	225896
+TOKEN	committee	69319
+TOKEN	amplifies	48983
+TOKEN	recursos	242492
+TOKEN	wavelength	31394
+
