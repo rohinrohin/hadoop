@@ -1,0 +1,9 @@
+Run this command for first part of assigment, which doesnt require the combiner
+
+sudo ./bin/hadoop jar ./share/hadoop/tools/lib/hadoop-streaming-2.8.1.jar -file /home/aditya/Documents/5thSem/BigData/Assignment-3/mapper.py -mapper "python3 mapper.py -k aditya" -file /home/aditya/Documents/5thSem/BigData/Assignment-3/reducer.py -reducer "python3 reducer.py" -input /Assignment/2 -output /Assignment-Output
+
+
+
+this command for the one with combiner, will output total count of the given token
+ ./bin/hadoop jar ./share/hadoop/tools/lib/hadoop-streaming-2.8.1.jar  -D mapredcue.jobs.tasks=2 -file /home/aditya/Documents/5thSem/BigData/Assignment-3/mapper.py -mapper "python3 mapper.py -k aditya" -file /home/aditya/Documents/5thSem/BigData/Assignment-3/combiner.py -combiner "python3 combiner.py" -file /home/aditya/Documents/5thSem/BigData/Assignment-3/reducer.py -reducer "python3 reducer2.py" -input /Assignment/* -output /Assignment-Output
+
