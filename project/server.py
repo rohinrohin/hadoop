@@ -9,6 +9,7 @@ from enum import Enum
 from kazoo.client import KazooClient
 import time
 from websocket import create_connection
+import math
 
 # helpers
 
@@ -113,6 +114,8 @@ class MasterService(BaseService):
 
 	metadata = {}
 	data = {}
+	keyRange = ''
+	keyRanges = {}
 
 	def onMessage(self, payload, isBinary):
 		if not isBinary:
@@ -181,7 +184,7 @@ class ServiceServerProtocol(WebSocketServerProtocol):
 
 if __name__ == '__main__':
 
-	zk = KazooClient(hosts='192.168.31.233:2181')
+	zk = KazooClient(hosts='127.0.0.1:2181')
 	zk.start()
 
 	import logging
@@ -197,7 +200,7 @@ if __name__ == '__main__':
 
 	if len(children) == 1:
 			portno = 8080
-			print("SERVER")
+			print("MASTER")
 			if zk.exists('/meta'):
 				zk.delete('/meta', recursive=True)
 
@@ -209,9 +212,9 @@ if __name__ == '__main__':
 			config = {
 				"lastDead": {
 					"backup": -1,
-					# backup is the server port who's data the dead server needs to backuo
+					# backup is the server port whose data the dead server needs to backuo
 					"keystore": -1
-					# keystore is the server who's '/backup it has to read from
+					# keystore is the server whose /backup it has to read from
 				},
 				"numOfServers": len(children)
 			}
@@ -219,27 +222,42 @@ if __name__ == '__main__':
 			print('Server init')
 			print(children)
 			totalKeyRange = 122 - 48 + 1
-			individualRange = totalKeyRange / len(children)
-			keyRanges = []
-			#for i in range(totalKeyRange/individualRange):
-			#	keyRanges
+			individualRange = int(math.floor(totalKeyRange / len(children)))
+			ranges = []
+			start = 48
+			for i in range(len(children)):
+				ranges.append(str(start) + "-" + str(start+individualRange))
+				start = start + individualRange + 1
+			ranges[-1] = ranges[-1].split("-")[0] + "-122" # change this later please
+			print(ranges)
+			MasterService.keyRange = ranges[0]
 
+			portnum, _ = zk.get('/meta/lastport')
+			portnum = int(portnum.decode('utf-8'))
+			for port in range(8081, portnum + 1):
+				MasterService.keyRanges[ranges[port - 8080]] = port
+				signal = {
+					"status": "ready",
+					"data": ranges[port - 8080]
+				}
+				#ws = create_connection("ws://127.0.0.1:%s/config" % str(port))
+				#print('Sending to port %s' % str(port))
+				#ws.send(json.dumps(signal))
 
-			#MasterService.keymapping =
 
 	else:
 		print("SLAVE")
 		portno, _ = zk.get('/meta/lastport')
 		portno = int(portno.decode('utf-8')) + 1
 		zk.set('/meta/lastport', str(portno).encode())
-		ws = create_connection("ws://127.0.0.1:%s" % str(portno))
-		print("SLAVE: WAITING FOR SIGNAL ON %s" % str(portno))
-		result =  ws.recv()
-		result = json.loads(result)
-		if result["status"] == codes.READY.name:
-			KeyStoreService.keyRange = result["data"]
-		print("SLAVE: READY FOR KEYRANGE " + result["data"])
-		ws.close()
+		#ws = create_connection("ws://127.0.0.1:%s" % str(portno))
+		#print("SLAVE: WAITING FOR SIGNAL ON %s" % str(portno))
+		#result =  ws.recv()
+		#result = json.loads(result)
+		#if result["status"] == codes.READY.name:
+		#	KeyStoreService.keyRange = result["data"]
+		#print("SLAVE: READY FOR KEYRANGE " + result["data"])
+		#ws.close()
 
 
 	factory = WebSocketServerFactory(u"ws://127.0.0.1:%s" % str(portno))
