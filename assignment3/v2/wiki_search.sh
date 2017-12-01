@@ -18,19 +18,19 @@ while test $# -gt 0; do
                         exit
                         ;;
                 -d)
-						/home/anvith/Hadoop/hadoop-2.8.1/bin/hdfs dfs -ls /Assignment1/Data
+						hdfs dfs -ls /Assignment1/Data
 						exit
                         ;;
                 -k)
 						shift
 						if test $# -gt 1; then
-							/home/anvith/Hadoop/hadoop-2.8.1/bin/hdfs dfs -test -d /MapOutput1 && /home/anvith/Hadoop/hadoop-2.8.1/bin/hdfs dfs -rm -r -f /MapOutput1
+							hdfs dfs -test -d /MapOutput1 && hdfs dfs -rm -r -f /MapOutput1
 	
 				
-							time /home/anvith/Hadoop/hadoop-2.8.1/bin/hadoop jar /home/anvith/Hadoop/hadoop-2.8.1/share/hadoop/tools/lib/hadoop-streaming-2.8.1.jar \
-				            -mapper "python3 /home/anvith/BigData/MapReducer/mapper.py $1" \
-				            -reducer "python3 /home/anvith/BigData/MapReducer/reducer.py" \
-				            -input /Assignment1/Data/9 \
+							time /usr/local/hadoop/bin/hadoop jar /usr/local/hadoop/share/hadoop/tools/lib/hadoop-streaming-2.6.5.jar \
+				            -mapper "python3 /home/hduser/hadoop/assignment3/v2/mapper.py $1" \
+				            -reducer "python3 /home/hduser/hadoop/assignment3/v2/reducer.py" \
+				            -input /Assignment/3 \
 				            -output /MapOutput1
 				            
 						else
@@ -42,15 +42,15 @@ while test $# -gt 0; do
 		       	-c)
 						shift
 						if test $# -gt 1; then
-							/home/anvith/Hadoop/hadoop-2.8.1/bin/hdfs dfs -test -d /MapOutput2 && /home/anvith/Hadoop/hadoop-2.8.1/bin/hdfs dfs -rm -r -f /MapOutput2
+							/usr/local/hadoop/bin/hdfs dfs -test -d /MapOutput2 && /usr/local/hadoop/bin/hdfs dfs -rm -r -f /MapOutput2
 
 
-							time /home/anvith/Hadoop/hadoop-2.8.1/bin/hadoop jar /home/anvith/Hadoop/hadoop-2.8.1/share/hadoop/tools/lib/hadoop-streaming-2.8.1.jar \
+							time /usr/local/hadoop/bin/hadoop jar /usr/local/hadoop/share/hadoop/tools/lib/hadoop-streaming-2.6.5.jar \
 				            -D  mapreduce.job.reduces=2 \
-				            -mapper "python3 /home/anvith/BigData/MapReducer/mapper.py $1" \
-				            -combiner "python3 /home/anvith/BigData/MapReducer/combiner.py" \
-				            -reducer "python3 /home/anvith/BigData/MapReducer/reducer1.py" \
-				            -input /Assignment1/Data/9 \
+				            -mapper "python3 /home/hduser/hadoop/assignment3/v2/mapper.py $1" \
+				            -combiner "python3 /home/hduser/hadoop/assignment3/v2/combiner.py" \
+				            -reducer "python3 /home/hduser/hadoop/assignment3/v2/reducer1.py" \
+				            -input /Assignment/3 \
 				            -output /MapOutput2
 
 						else

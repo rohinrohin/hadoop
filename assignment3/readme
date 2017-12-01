@@ -5,5 +5,4 @@ sudo ./bin/hadoop jar ./share/hadoop/tools/lib/hadoop-streaming-2.8.1.jar -file 
 
 
 this command for the one with combiner, will output total count of the given token
- ./bin/hadoop jar ./share/hadoop/tools/lib/hadoop-streaming-2.8.1.jar  -D mapredcue.jobs.tasks=2 -file /home/aditya/Documents/5thSem/BigData/Assignment-3/mapper.py -mapper "python3 mapper.py -k aditya" -file /home/aditya/Documents/5thSem/BigData/Assignment-3/combiner.py -combiner "python3 combiner.py" -file /home/aditya/Documents/5thSem/BigData/Assignment-3/reducer.py -reducer "python3 reducer2.py" -input /Assignment/* -output /Assignment-Output
-
+sudo -u hduser ./bin/hadoop jar ./share/hadoop/tools/lib/hadoop-streaming-2.6.5.jar  -D mapredcue.jobs.tasks=2 -file /home/hduser/hadoop/assignment3/mapper.py -mapper "python3 mapper.py -k aditya" -file /home/hduser/hadoop/assignment3/combiner.py -combiner "python3 combiner.py" -file /home/hduser/hadoop/assignment3/ -reducer "python3 reducer2.py" -input /Assignment/3 -output /Assignment-Output6
