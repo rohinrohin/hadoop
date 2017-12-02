@@ -27,12 +27,12 @@ client_cache= LimitedSizeDict(size_limit=10)
 
 
 class codes(Enum):
-    SUCCESS = 1
-    FAIL = 2
-    ERR_KEY_ALREADY_EXISTS = 3
-    ERR_KEY_NOT_RESPONSIBLE = 4
-    ERR_KEY_NOT_FOUND = 5
-    ERR_SERVER_NOT_INIT = 6
+	SUCCESS = 1
+	FAIL = 2
+	ERR_KEY_ALREADY_EXISTS = 3
+	ERR_KEY_NOT_RESPONSIBLE = 4
+	ERR_KEY_NOT_FOUND = 5
+    #ERR_SERVER_NOT_INIT = 6
 
 def connect_to_server(request, port_num, isMaster):
     address_append = "/keystore" if not isMaster else "/master"
@@ -46,7 +46,7 @@ def connect_to_server(request, port_num, isMaster):
                 if i == request['key']:
                     print("Port associated with key exists in cache")
                     print("Cache returned port number:", client_cache[i])
-                    connect_to_server(request, str(client_cache[i]), isMaster=False)
+                    return connect_to_server(request, str(client_cache[i]), isMaster=False)
     elif request['type'] == "put":
         if request['value'][0] == '{':
             request['value'] = literal_eval(request['value'])
@@ -68,12 +68,13 @@ def connect_to_server(request, port_num, isMaster):
     print("Receiving...")
     result =  ws.recv()
     result = json.loads(result)
-    print ("Server returned ",result["status"])
+    print ("Server returned",result["status"])
     if(result['status'] == codes.SUCCESS.name):
         client_cache[request['key']] = port_num
+        if 'data' in result:
+            print('Data returned:', result['data'])
         print(client_cache)  #if the master contains the key. 9001 is the current static master address
-
-    if(result['status'] == codes.ERR_KEY_NOT_RESPONSIBLE.name):
+    elif(result['status'] == codes.ERR_KEY_NOT_RESPONSIBLE.name):
         if "data" in result:
             print("Contact port number "+result["data"])
             new_port_no = result['data']
@@ -95,8 +96,9 @@ def send_request(request):
         'value': ''.join(request[2:]) if len(request) >= 3 else ''
     }
     print("Client's request: ",request)
-    while(True):
-        connect_to_server(request, MASTER, isMaster=True)
+    connect_to_server(request, MASTER, isMaster=True)
 
 if __name__ == '__main__':
-    send_request(input())
+
+    while True:
+        send_request(input())
