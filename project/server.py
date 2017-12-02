@@ -100,7 +100,7 @@ class KeyStoreService(BaseService):
     def onMessage(self, payload, isBinary):
         if not isBinary:
             payload = json.loads(payload.decode('utf-8'))
-            printout("[SLAVE SERVER]", YELLOW)
+            printout("[SLAVE]", YELLOW)
             print("RECIEVED: " + str(payload))
             payloadType = payload['type'].upper()
             payloadParams = payload['params']
@@ -109,12 +109,15 @@ class KeyStoreService(BaseService):
             }
 
             if payloadType == 'SETKEY':
+                printout("[SLAVE]", YELLOW)
                 print("KEYSET RECIEVED FROM MASTER")
                 self.keyRange["range"] = payloadParams['data']
                 self.keyRange["status"] = "true"
+                printout("[SLAVE]", YELLOW)
                 print("KEYRANGE: ", self.keyRange)
                 msg = json.dumps(res)
-                print("SERVER SENT: " + msg)
+                printout("[SLAVE]", YELLOW)
+                print("SENT KEYSET ACK. ")
                 self.proto.sendMessage(msg.encode('utf8'))
                 return
 
@@ -406,16 +409,19 @@ if __name__ == '__main__':
     logging.basicConfig()
 
     currInstance = zk.create('/app/instance', ephemeral=True, sequence=True, makepath=True)
+    printout("[INIT]", WHITE)
     print(currInstance, " started. ")
 
     children = zk.get_children('/app')
+    printout("[INIT]", WHITE)
     print(children)
 
     portno = 0
 
     if len(children) == 1:
             portno = 8080
-            print("MASTER")
+            printout("[MASTER]", RED)
+            print("MASTER INIT")
             if zk.exists('/meta'):
                 zk.delete('/meta', recursive=True)
 
@@ -434,7 +440,7 @@ if __name__ == '__main__':
                 "numOfServers": len(children)
             }
             zk.create('/meta/config', json.dumps(config).encode('utf-8'))
-            print('Server init')
+            printout("[MASTER]", RED)
             print(children)
             totalKeyRange = 122 - 48 + 1
             individualRange = int(math.floor(totalKeyRange / len(children)))
@@ -444,7 +450,8 @@ if __name__ == '__main__':
                 ranges.append(str(start) + "-" + str(start+individualRange))
                 start = start + individualRange + 1
             ranges[-1] = ranges[-1].split("-")[0] + "-122" # change this later please
-            print(ranges)
+            printout("[MASTER]", RED)
+            print("RANGES: ", ranges)
             MasterService.keyRange["range"] = ranges[0]
             MasterService.keyRange["status"] == "True"
 
@@ -459,20 +466,22 @@ if __name__ == '__main__':
                }
 
                ws = create_connection("ws://127.0.0.1:" + str(port) + "/keystore")
-               print(json.dumps(signal))
+               printout("[MASTER]", RED)
+               print("SENDING SIGNAL TO (" + str(port) + "): ", json.dumps(signal))
                ws.send(json.dumps(signal))
-               print ("Sent")
-               print ("Receiving...")
                result =  ws.recv()
-               print ("Received '%s'" % result)
+               printout("[MASTER]", RED)
+               print ("RECIEVED ACK. ")
                ws.close()
 
     else:
-        print("SLAVE")
+        printout("[SLAVE]", YELLOW)
+        print("SLAVE INIT")
         portno, _ = zk.get('/meta/lastport')
         portno = int(portno.decode('utf-8')) + 1
         zk.set('/meta/lastport', str(portno).encode())
-        print("LISTENING FOR MASTER KEYSET")
+        printout("[SLAVE]", YELLOW)
+        print("LISTENING FOR KEYSET")
 
     factory = WebSocketServerFactory(u"ws://127.0.0.1:%s" % str(portno))
     factory.protocol = ServiceServerProtocol

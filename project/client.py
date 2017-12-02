@@ -27,27 +27,18 @@ client_cache= LimitedSizeDict(size_limit=10)
 
 
 class codes(Enum):
-<<<<<<< 17dcf3916e4c634834cb7464dc4429e3d62a14ef
-	SUCCESS = 1
-	FAIL = 2
-	ERR_KEY_ALREADY_EXISTS = 3
-	ERR_KEY_NOT_RESPONSIBLE = 4
-	ERR_KEY_NOT_FOUND = 5
-    ERR_SERVER_NOT_INIT = 6
-=======
     SUCCESS = 1
     FAIL = 2
     ERR_KEY_ALREADY_EXISTS = 3
     ERR_KEY_NOT_RESPONSIBLE = 4
     ERR_KEY_NOT_FOUND = 5
->>>>>>> added terminal colors
+    ERR_SERVER_NOT_INIT = 6
 
 def connect_to_server(request, port_num, isMaster):
     address_append = "/keystore" if not isMaster else "/master"
     address="ws://127.0.0.1:"+port_num+address_append
     print("Address: " + address)
     ws=create_connection(address)
-<<<<<<< 17dcf3916e4c634834cb7464dc4429e3d62a14ef
     if request['type'] == "get":
         if isMaster:
             listCacheKeys=list(client_cache.keys())
@@ -59,31 +50,6 @@ def connect_to_server(request, port_num, isMaster):
     elif request['type'] == "put":
         if request['value'][0] == '{':
             request['value'] = literal_eval(request['value'])
-=======
-    request = input().split()
-    #if len(request) > 3:
-        # hack to allow spaces in json value input
-    #   request = [request[0],request[1],''.join(request[2:])]
-    print(request[0])
-    print(request[1])
-    #print(request[2])
-    method, params = request[0].lower(), ""
-    if method == "get":
-        listCacheKeys=list(client_cache.keys())
-        for i in listCacheKeys:
-            if i==(request[1]):
-                print("recieved locally without master")
-                #value=client_cache[]
-                print("cache returned:", client_cache[i])
-                return connect_to_server(str(client_cache[i]), isMaster=False)
-        params = {
-            "key": request[1]
-        }
-    elif method == "put":
-        value = ''.join(request[2:])
-        if value[0] == '{':
-            value = literal_eval(value)
->>>>>>> added terminal colors
         else:
             request['value'] = request['value'].strip()
     #elif method == "getmultiple":
@@ -103,15 +69,8 @@ def connect_to_server(request, port_num, isMaster):
     result =  ws.recv()
     result = json.loads(result)
     print ("Server returned ",result["status"])
-<<<<<<< 17dcf3916e4c634834cb7464dc4429e3d62a14ef
     if(result['status'] == codes.SUCCESS.name):
         client_cache[request['key']] = port_num
-=======
-    #print(client_cache[request[1]])
-
-    if(result['status']==codes.SUCCESS.name):
-        client_cache[request[1]]=port_num
->>>>>>> added terminal colors
         print(client_cache)  #if the master contains the key. 9001 is the current static master address
 
     if(result['status'] == codes.ERR_KEY_NOT_RESPONSIBLE.name):
