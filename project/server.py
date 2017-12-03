@@ -421,7 +421,19 @@ class BackupKeyStoreService(BaseService):
                         res['status'] = codes.ERR_KEY_NOT_RESPONSIBLE
 
             elif payloadType == 'REPLICA':
-                res['data'] = self.data
+                #res['data'] = self.data
+                if self.isMaster["flag"]:
+                    res['data'] = {
+                        'keyRange': self.keyRange,
+                        'keyRanges': self.keyRanges,
+                        'data': self.data
+                    }
+                else:
+                    res['data'] = {
+                        'keyRange': self.keyRange,
+                        'data': self.data
+                    }
+                res['status'] = codes.SUCCESS
 
 
             else:
