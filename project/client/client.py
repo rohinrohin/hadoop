@@ -96,7 +96,7 @@ def connect_to_server(request, port_num, isMaster):
 
     return {
         'status': result['status'],
-        'data': result['data'],
+        'data': result['data'] if 'data' in result else '',
         'logger': LOG
     }
 
