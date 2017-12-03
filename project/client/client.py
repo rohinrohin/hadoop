@@ -46,7 +46,7 @@ def connect_to_server(request, port_num, isMaster):
                 if i == request['key']:
                     print("Port associated with key exists in cache")
                     print("Cache returned port number:", client_cache[i])
-                    return connect_to_server(request, str(client_cache[i]), isMaster=False)
+                    return connect_to_server(request, str(client_cache[i]), isMaster=False if client_cache[i] != MASTER else True)
     elif request['type'] == "put":
         if request['value'][0] == '{':
             request['value'] = literal_eval(request['value'])

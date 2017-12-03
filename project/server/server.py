@@ -12,6 +12,7 @@ import math
 from websocket import create_connection
 import sched, time
 s = sched.scheduler(time.time, time.sleep)
+ss = sched.scheduler(time.time, time.sleep)
 
 PORT_NO = ""
 NUMBER_SERVERS = ""
@@ -29,44 +30,49 @@ def scheduleSignals(a='default'):
                "params": {"data": ranges[port - 8080]}
            }
 
-           ws = create_connection("ws://192.168.31.2:" + str(port) + "/keystore")
+           ss = create_connection("ws://localhost:" + str(port) + "/keystore")
            printout("[MASTER]", RED)
            print("SENDING SIGNAL TO (" + str(port) + "): ", json.dumps(signal))
-           ws.send(json.dumps(signal))
-           ws.close()
-           #result =  ws.recv()
+           ss.send(json.dumps(signal))
+           #result =  ss.recv()
+           ss.close()
            printout("[MASTER]", RED)
            print ("RECIEVED ACK. ")
-           time.sleep(1)
+           time.sleep(2)
 
 def scheduleMasterKeySet():
     # master keyset and propogate to backup
-    print("KEYRANGE: ", MasterService.keyRange["range"])
+    print("MASTER KEYSET RUNNING")
     MasterService.keyRange["range"] = ranges[0]
     MasterService.keyRange["status"] = "True"
     lastport, _ = zk.get('/meta/lastport')
     lastport = int(lastport.decode('utf-8'))
     numOfServers = lastport - 8080 + 1
     MasterService.keyRange["backupPort"] = 8080 + (portno + 1) % numOfServers
+    print("KEYRANGE: ", MasterService.keyRange["range"])
     print("ws://127.0.0.1:" + str(MasterService.keyRange["backupPort"]) + "/backup")
-    ss = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
+    ss = create_connection("ws://localhost:" + str(MasterService.keyRange["backupPort"]) + "/backup")
 
     signal = {
        "type": "setkey",
-       "params": {"data": MasterService.keyRange["range"]}
+       "params": {"data": MasterService.keyRange["range"], "master": "true", "keyRanges": MasterService.keyRanges}
     }
 
     ss.send(json.dumps(signal))
     ss.close()
     print ("GOT ACK. ")
 
+    time.sleep(3)
+    
+    scheduleSignals()
+
 def clusterStatusUp():
     print(" ------------- CLUSTER STATUS UP ----------------- ")
 
 def signalScheduler():
-    s.enter(2, 1, scheduleSignals)
-    s.enter(10, 1, scheduleMasterKeySet)
+    s.enter(2, 1, scheduleMasterKeySet)
     s.run()
+    #ss.run()
 
 import sys
 
@@ -182,7 +188,7 @@ class KeyStoreService(BaseService):
                 print("KEYRANGE: ", self.keyRange)
 
                 print("Sleeping for all clients to awake. ")
-                time.sleep(6)
+                time.sleep(10)
                 print("Finished Sleeping")
                 print("ws://127.0.0.1:" + str(self.keyRange["backupPort"]) + "/backup")
                 ss = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
@@ -371,8 +377,8 @@ class BackupKeyStoreService(BaseService):
                     printout("[MASTER-BACKUP]", MAGENTA)
                     print("ASSUMED MASTER BACKUP ROLE")
                     # check if backup of master
-                    self.keyRanges = payload["keyRanges"]
-                    isMaster["flag"] = True
+                    self.keyRanges = payloadParams["keyRanges"]
+                    self.isMaster["flag"] = True
                 else:
                     self.isMaster["printString"] = "[SLAVE-BACKUP]"
                     printout("[SLAVE-BACKUP]", MAGENTA)
@@ -536,6 +542,7 @@ print(children)
 
 portno = 0
 portnum = 0
+ranges = []
 
 if len(children) == 1:
         portno = 8080
@@ -563,7 +570,6 @@ if len(children) == 1:
         print(children)
         totalKeyRange = 122 - 48 + 1
         individualRange = int(math.floor(totalKeyRange / len(children)))
-        ranges = []
         start = 48
         for i in range(len(children)):
             ranges.append(str(start) + "-" + str(start+individualRange))
