@@ -5,6 +5,13 @@ import ast
 from enum import Enum
 
 MASTER = "8080"
+LOG = []
+
+def logger(log):
+    LOG.append(log)
+
+def clean_log():
+    LOG = []
 
 from collections import OrderedDict
 
@@ -37,16 +44,14 @@ class codes(Enum):
 def connect_to_server(request, port_num, isMaster):
     address_append = "/keystore" if not isMaster else "/master"
     address="ws://127.0.0.1:"+port_num+address_append
-    print("Address: " + address)
-    ws=create_connection(address)
     if request['type'] == "get":
         if isMaster:
             listCacheKeys=list(client_cache.keys())
             for i in listCacheKeys:
                 if i == request['key']:
-                    print("Port associated with key exists in cache")
-                    print("Cache returned port number:", client_cache[i])
-                    return connect_to_server(request, str(client_cache[i]), isMaster=False if client_cache[i] != MASTER else True)
+                    logger("CACHE HIT, port returned:", client_cache[i])
+                    return connect_to_server(request, str(client_cache[i]), isMaster=False)
+            logger('CACHE MISS')
     elif request['type'] == "put":
         if request['value'][0] == '{':
             request['value'] = literal_eval(request['value'])
@@ -63,30 +68,35 @@ def connect_to_server(request, port_num, isMaster):
             'value': request['value']
         }
     }
+    logger('Establishing connection with', address)
+    ws = create_connection(address)
     ws.send(json.dumps(message).encode('utf8'))
-    print("Sent")
-    print("Receiving...")
     result =  ws.recv()
     result = json.loads(result)
-    print ("Server returned",result["status"])
+    logger(result["status"])
+    ws.close()
     if(result['status'] == codes.SUCCESS.name):
         client_cache[request['key']] = port_num
         if 'data' in result:
-            print('Data returned:', result['data'])
-        print(client_cache)  #if the master contains the key. 9001 is the current static master address
+            logger('Data returned:', result['data'])
+        logger(client_cache)  #if the master contains the key. 9001 is the current static master address
     elif(result['status'] == codes.ERR_KEY_NOT_RESPONSIBLE.name):
         if "data" in result:
-            print("Contact port number "+result["data"])
+            logger("Contacting port number "+result["data"])
             new_port_no = result['data']
-            connect_to_server(request, str(new_port_no), isMaster=False)
+            return connect_to_server(request, str(new_port_no), isMaster=False)
             # MASTER SENT NEW PORT NUMBER
         else:
             # CACHED SLAVE NO LONGER EXISTS/HOLDS KEY
             # SO CONTACT MASTER AGAIN
             # PARTHA COME CALL ME WHEN YOU ARE SEEING THIS CODE
-            connect_to_server(request, MASTER, isMaster=True)
+            return connect_to_server(request, MASTER, isMaster=True)
 
-    ws.close()
+    return {
+        'status': result['status'],
+        'data': result['data'],
+        'logger': LOG
+    }
 
 def send_request(request):
     request = request.split()
@@ -95,8 +105,19 @@ def send_request(request):
         'key': request[1],
         'value': ''.join(request[2:]) if len(request) >= 3 else ''
     }
-    print("Client's request: ",request)
-    connect_to_server(request, MASTER, isMaster=True)
+    print("Client's request: ",request
+    print(connect_to_server(request, MASTER, isMaster=True))
+    clean_log()
+
+def send_request_json(request):
+    request = {
+        'type': request['type'],
+        'key': request['key'],
+        'value': request['value'] if 'value' in request else ''
+    }
+    logger(request)
+    return connect_to_server(request, MASTER, isMaster=True)
+    clean_log()
 
 if __name__ == '__main__':
 
