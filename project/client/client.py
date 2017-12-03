@@ -49,8 +49,9 @@ def connect_to_server(request, port_num, isMaster):
             listCacheKeys=list(client_cache.keys())
             for i in listCacheKeys:
                 if i == request['key']:
-                    logger("CACHE HIT, port returned:", client_cache[i])
-                    return connect_to_server(request, str(client_cache[i]), isMaster=False)
+                    if str(client_cache[i]) != MASTER:
+                        logger("CACHE HIT, port returned:", client_cache[i])
+                        return connect_to_server(request, str(client_cache[i]), isMaster=False)
             logger('CACHE MISS')
     elif request['type'] == "put":
         if request['value'][0] == '{':
