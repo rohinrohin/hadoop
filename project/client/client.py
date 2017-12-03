@@ -44,13 +44,14 @@ class codes(Enum):
 def connect_to_server(request, port_num, isMaster):
     address_append = "/keystore" if not isMaster else "/master"
     address="ws://127.0.0.1:"+port_num+address_append
+    logger(address)
     if request['type'] == "get":
         if isMaster:
             listCacheKeys=list(client_cache.keys())
             for i in listCacheKeys:
                 if i == request['key']:
                     if str(client_cache[i]) != MASTER:
-                        logger("CACHE HIT, port returned:", client_cache[i])
+                        logger("CACHE HIT, port returned: "+client_cache[i])
                         return connect_to_server(request, str(client_cache[i]), isMaster=False)
             logger('CACHE MISS')
     elif request['type'] == "put":
@@ -69,7 +70,7 @@ def connect_to_server(request, port_num, isMaster):
             'value': request['value']
         }
     }
-    logger('Establishing connection with', address)
+    logger('Establishing connection with '+address)
     ws = create_connection(address)
     ws.send(json.dumps(message).encode('utf8'))
     result =  ws.recv()
@@ -79,7 +80,7 @@ def connect_to_server(request, port_num, isMaster):
     if(result['status'] == codes.SUCCESS.name):
         client_cache[request['key']] = port_num
         if 'data' in result:
-            logger('Data returned:', result['data'])
+            logger('Data returned: '+result['data'])
         logger(client_cache)  #if the master contains the key. 9001 is the current static master address
     elif(result['status'] == codes.ERR_KEY_NOT_RESPONSIBLE.name):
         if "data" in result:
@@ -106,8 +107,9 @@ def send_request(request):
         'key': request[1],
         'value': ''.join(request[2:]) if len(request) >= 3 else ''
     }
-    print("Client's request: ",request
-    print(connect_to_server(request, MASTER, isMaster=True))
+    print("Client's request: ",request)
+    response = connect_to_server(request, MASTER, isMaster=True)
+    print(response)
     clean_log()
 
 def send_request_json(request):
