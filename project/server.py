@@ -34,9 +34,10 @@ def print_time(a='default'):
            print("SENDING SIGNAL TO (" + str(port) + "): ", json.dumps(signal))
            ws.send(json.dumps(signal))
            ws.close()
-           result =  ws.recv()
+           #result =  ws.recv()
            printout("[MASTER]", RED)
            print ("RECIEVED ACK. ")
+           time.sleep(1)
 
 def print_some_times():
     s.enter(2, 1, print_time)
@@ -155,7 +156,8 @@ class KeyStoreService(BaseService):
                 printout("[SLAVE]", YELLOW)
                 print("KEYRANGE: ", self.keyRange)
 
-                time.sleep(5)
+                print("Sleeping for all clients to awake. ")
+                time.sleep(6)
                 print("Finished Sleeping")
                 print("ws://127.0.0.1:" + str(self.keyRange["backupPort"]) + "/backup")
                 ss = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
