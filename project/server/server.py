@@ -23,22 +23,24 @@ def scheduleSignals(a='default'):
     print("Start Signals Scheduled")
     if portno == 8080:
         for port in range(8081, portnum + 1):
-           MasterService.keyRanges[ranges[port - 8080]] = port
+            MasterService.keyRanges[ranges[port - 8080]] = port
 
-           signal = {
+            signal = {
                "type": "setkey",
                "params": {"data": ranges[port - 8080]}
-           }
+            }
 
-           ss = create_connection("ws://localhost:" + str(port) + "/keystore")
-           printout("[MASTER]", RED)
-           print("SENDING SIGNAL TO (" + str(port) + "): ", json.dumps(signal))
-           ss.send(json.dumps(signal))
-           #result =  ss.recv()
-           ss.close()
-           printout("[MASTER]", RED)
-           print ("RECIEVED ACK. ")
-           time.sleep(2)
+            ss = create_connection("ws://localhost:" + str(port) + "/keystore")
+            printout("[MASTER]", RED)
+            print("SENDING SIGNAL TO (" + str(port) + "): ", json.dumps(signal))
+            ss.send(json.dumps(signal))
+            #result =  ss.recv()
+            ss.close()
+            printout("[MASTER]", RED)
+            print ("RECIEVED ACK. ")
+            time.sleep(3)
+        time.sleep(10)
+        clusterStatusUp()
 
 def scheduleMasterKeySet():
     # master keyset and propogate to backup
@@ -48,7 +50,7 @@ def scheduleMasterKeySet():
     lastport, _ = zk.get('/meta/lastport')
     lastport = int(lastport.decode('utf-8'))
     numOfServers = lastport - 8080 + 1
-    MasterService.keyRange["backupPort"] = 8080 + (portno + 1) % numOfServers
+    MasterService.keyRange["backupPort"] = 8080 + ((8080 - portno) + 1) % numOfServers
     print("KEYRANGE: ", MasterService.keyRange["range"])
     print("ws://127.0.0.1:" + str(MasterService.keyRange["backupPort"]) + "/backup")
     ss = create_connection("ws://localhost:" + str(MasterService.keyRange["backupPort"]) + "/backup")
@@ -62,8 +64,8 @@ def scheduleMasterKeySet():
     ss.close()
     print ("GOT ACK. ")
 
-    time.sleep(3)
-    
+    time.sleep(6)
+
     scheduleSignals()
 
 def clusterStatusUp():
@@ -183,7 +185,8 @@ class KeyStoreService(BaseService):
                 lastport, _ = zk.get('/meta/lastport')
                 lastport = int(lastport.decode('utf-8'))
                 numOfServers = lastport - 8080 + 1
-                self.keyRange["backupPort"] = 8080 + (portno + 1) % numOfServers
+                print("PORT NUMBER", portno)
+                self.keyRange["backupPort"] = 8080 + (abs(8080 - portno) + 1) % numOfServers
                 printout("[SLAVE]", YELLOW)
                 print("KEYRANGE: ", self.keyRange)
 
@@ -318,6 +321,12 @@ class MasterService(BaseService):
                 if keyRangeCheck == codes.SUCCESS:
                     # key in master
                     result = put(self.data, payloadParams['key'], payloadParams['value'])
+                    ws = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
+                    ws.send(json.dumps(payload))
+                    print ("Reeiving...")
+                    result =  ws.recv()
+                    print ("got ack. ")
+                    ws.close()
                     if result == codes.ERR_KEY_ALREADY_EXISTS:
                         res['status'] = str(result.name)
                 else:
