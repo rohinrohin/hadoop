@@ -18,8 +18,8 @@ NUMBER_SERVERS = ""
 
 # helpers
 
-def print_time(a='default'):
-    print("sched")
+def scheduleSignals(a='default'):
+    print("Start Signals Scheduled")
     if portno == 8080:
         for port in range(8081, portnum + 1):
            MasterService.keyRanges[ranges[port - 8080]] = port
@@ -39,8 +39,33 @@ def print_time(a='default'):
            print ("RECIEVED ACK. ")
            time.sleep(1)
 
-def print_some_times():
-    s.enter(2, 1, print_time)
+def scheduleMasterKeySet():
+    # master keyset and propogate to backup
+    print("KEYRANGE: ", MasterService.keyRange["range"])
+    MasterService.keyRange["range"] = ranges[0]
+    MasterService.keyRange["status"] = "True"
+    lastport, _ = zk.get('/meta/lastport')
+    lastport = int(lastport.decode('utf-8'))
+    numOfServers = lastport - 8080 + 1
+    MasterService.keyRange["backupPort"] = 8080 + (portno + 1) % numOfServers
+    print("ws://127.0.0.1:" + str(MasterService.keyRange["backupPort"]) + "/backup")
+    ss = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
+
+    signal = {
+       "type": "setkey",
+       "params": {"data": MasterService.keyRange["range"]}
+    }
+
+    ss.send(json.dumps(signal))
+    ss.close()
+    print ("GOT ACK. ")
+
+def clusterStatusUp():
+    print(" ------------- CLUSTER STATUS UP ----------------- ")
+
+def signalScheduler():
+    s.enter(2, 1, scheduleSignals)
+    s.enter(10, 1, scheduleMasterKeySet)
     s.run()
 
 import sys
@@ -175,7 +200,7 @@ class KeyStoreService(BaseService):
                 start, end = self.keyRange['range'].split('-')
                 start, end = int(start), int(end)
                 if firstChar > start and firstChar <= end:
-                    result = put(self.data, payloadParams['key'], payloadParams['value'])
+                    result = get(self.data, payloadParams['key'])
                     if result == codes.ERR_KEY_NOT_FOUND:
                         res['status'] = str(result.name)
                     else:
@@ -216,6 +241,7 @@ class KeyStoreService(BaseService):
                 res['status'] = str(codes.FAIL.name)
                 res['data'] = "Operation not permitted"
 
+            print(res)
             msg = json.dumps(res)
             print("SERVER SENT: " + msg)
             self.proto.sendMessage(msg.encode('utf8'))
@@ -224,7 +250,7 @@ class MasterService(BaseService):
 
     metadata = {}
     data = {}
-    keyRange = {"status": "false", "range": ""}
+    keyRange = {"status": "false", "range": "", "backupPort": ""}
     keyRanges = {}
 
 
@@ -255,6 +281,7 @@ class MasterService(BaseService):
                 res['status'] = str(codes.ERR_SERVER_NOT_INIT.name)
 
             if payloadType == 'GET':
+                print(self.keyRange["range"])
                 keyRangeCheck = self.checkKeyRange(payloadParams['key'])
                 if keyRangeCheck == codes.SUCCESS:
                     # key in master
@@ -433,7 +460,7 @@ class BackupKeyStoreService(BaseService):
                         'keyRange': self.keyRange,
                         'data': self.data
                     }
-                res['status'] = codes.SUCCESS
+                res['status'] = str(codes.SUCCESS.name)
 
 
             else:
@@ -544,13 +571,11 @@ if len(children) == 1:
         ranges[-1] = ranges[-1].split("-")[0] + "-122" # change this later please
         printout("[MASTER]", RED)
         print("RANGES: ", ranges)
-        MasterService.keyRange["range"] = ranges[0]
-        MasterService.keyRange["status"] = "True"
 
         portnum, _ = zk.get('/meta/lastport')
         portnum = int(portnum.decode('utf-8'))
 
-        print_some_times()
+        signalScheduler()
 
 else:
     printout("[SLAVE]", YELLOW)
