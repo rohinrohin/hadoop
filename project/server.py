@@ -10,8 +10,37 @@ from kazoo.client import KazooClient
 import time
 import math
 from websocket import create_connection
+import sched, time
+s = sched.scheduler(time.time, time.sleep)
+
+PORT_NO = ""
+NUMBER_SERVERS = ""
 
 # helpers
+
+def print_time(a='default'):
+    print("sched")
+    if portno == 8080:
+        for port in range(8081, portnum + 1):
+           MasterService.keyRanges[ranges[port - 8080]] = port
+
+           signal = {
+               "type": "setkey",
+               "params": {"data": ranges[port - 8080]}
+           }
+
+           ws = create_connection("ws://192.168.31.2:" + str(port) + "/keystore")
+           printout("[MASTER]", RED)
+           print("SENDING SIGNAL TO (" + str(port) + "): ", json.dumps(signal))
+           ws.send(json.dumps(signal))
+           ws.close()
+           result =  ws.recv()
+           printout("[MASTER]", RED)
+           print ("RECIEVED ACK. ")
+
+def print_some_times():
+    s.enter(2, 1, print_time)
+    s.run()
 
 import sys
 
@@ -79,6 +108,7 @@ def put(data, key, value):
 class BaseService:
 
     def __init__(self, proto):
+        print("init")
         self.proto = proto
         self.is_closed = False
 
@@ -94,7 +124,7 @@ class BaseService:
 class KeyStoreService(BaseService):
 
     data = {}
-    keyRange = {"status": "false", "range": ""}
+    keyRange = {"status": "false", "range": "", "backupPort": ""}
     test = 0
 
     def onMessage(self, payload, isBinary):
@@ -113,24 +143,43 @@ class KeyStoreService(BaseService):
                 print("KEYSET RECIEVED FROM MASTER")
                 self.keyRange["range"] = payloadParams['data']
                 self.keyRange["status"] = "true"
-                printout("[SLAVE]", YELLOW)
-                print("KEYRANGE: ", self.keyRange)
                 msg = json.dumps(res)
                 printout("[SLAVE]", YELLOW)
                 print("SENT KEYSET ACK. ")
                 self.proto.sendMessage(msg.encode('utf8'))
+
+                lastport, _ = zk.get('/meta/lastport')
+                lastport = int(lastport.decode('utf-8'))
+                numOfServers = lastport - 8080 + 1
+                self.keyRange["backupPort"] = 8080 + (portno + 1) % numOfServers
+                printout("[SLAVE]", YELLOW)
+                print("KEYRANGE: ", self.keyRange)
+
+                time.sleep(5)
+                print("Finished Sleeping")
+                print("ws://127.0.0.1:" + str(self.keyRange["backupPort"]) + "/backup")
+                ss = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
+                ss.send(json.dumps(payload))
+                ss.close()
+                print ("GOT ACK. ")
+
                 return
 
             if self.keyRange["status"] == "false":
                 res['status'] = str(codes.ERR_SERVER_NOT_INIT.name)
 
             if payloadType == 'GET':
-                result = get(self.data, payloadParams['key'])
-                print(result)
-                if result == codes.ERR_KEY_NOT_FOUND:
-                    res['status'] = str(result.name)
+                firstChar = ord(payloadParams['key'][0])
+                start, end = self.keyRange['range'].split('-')
+                start, end = int(start), int(end)
+                if firstChar > start and firstChar <= end:
+                    result = put(self.data, payloadParams['key'], payloadParams['value'])
+                    if result == codes.ERR_KEY_NOT_FOUND:
+                        res['status'] = str(result.name)
+                    else:
+                        res['data'] = result
                 else:
-                    res['data'] = result
+                    res['status'] = codes.ERR_KEY_NOT_RESPONSIBLE
 
             elif payloadType == 'GETMULTIPLE':
                 result = {}
@@ -148,6 +197,12 @@ class KeyStoreService(BaseService):
                 start, end = int(start), int(end)
                 if firstChar > start and firstChar <= end:
                     result = put(self.data, payloadParams['key'], payloadParams['value'])
+                    ws = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
+                    ws.send(json.dumps(payload))
+                    print ("Reeiving...")
+                    result =  ws.recv()
+                    print ("got ack. ")
+                    ws.close()
                 else:
                     res['status'] = codes.ERR_KEY_NOT_RESPONSIBLE
 
@@ -169,6 +224,7 @@ class MasterService(BaseService):
     data = {}
     keyRange = {"status": "false", "range": ""}
     keyRanges = {}
+
 
     def checkKeyRange(self, key):
         start, end = self.keyRange['range'].split('-')
@@ -247,7 +303,7 @@ class MasterService(BaseService):
 
 class BackupKeyStoreService(BaseService):
 
-    isMaster = {"flag": "false"}
+    isMaster = {"flag": "false", "printString": ""}
     data = {}
     keyRange = {"status": "false", "range": ""}
     keyRanges = {}
@@ -267,7 +323,9 @@ class BackupKeyStoreService(BaseService):
 
     def onMessage(self, payload, isBinary):
         if not isBinary:
+
             payload = json.loads(payload.decode('utf-8'))
+            print("BACKUP RECEIVED: ", str(payload))
             payloadType = payload['type'].upper()
             payloadParams = payload['params']
             res = {
@@ -280,38 +338,55 @@ class BackupKeyStoreService(BaseService):
                 self.keyRange["status"] = "true"
 
                 if "master" in payloadParams:
+                    self.isMaster["printString"] = "[MASTER-BACKUP]"
+                    printout("[MASTER-BACKUP]", MAGENTA)
+                    print("ASSUMED MASTER BACKUP ROLE")
                     # check if backup of master
                     self.keyRanges = payload["keyRanges"]
                     isMaster["flag"] = True
+                else:
+                    self.isMaster["printString"] = "[SLAVE-BACKUP]"
+                    printout("[SLAVE-BACKUP]", MAGENTA)
+                    print("ASSUMED SLAVE BACKUP ROLE")
 
+                printout(self.isMaster["printString"], MAGENTA)
                 print("BACKUP KEYRANGE: ", self.keyRange)
+                printout(self.isMaster["printString"], MAGENTA)
+                print("SENT ACK.")
                 msg = json.dumps(res)
-                print("SERVER SENT: " + msg)
                 self.proto.sendMessage(msg.encode('utf8'))
+
+
                 return
 
-            # moved print statement here to to know if master
-            # backup or keystore backup
-            print("MASTER" if self.isMaster["flag"] else "KEYSTORE" + "BACKUP SERVER RECEIVED: " + str(payload))
-
-            if self.keyRange["status"] == "false":
-                res['status'] = str(codes.ERR_SERVER_NOT_INIT.name)
-
             if payloadType == 'GET':
-                keyRangeCheck = self.checkKeyRange(payloadParams['key'])
-                if keyRangeCheck == codes.SUCCESS:
-                    # key in master
-                    result = get(self.data, payloadParams['key'])
-                    if result == codes.ERR_KEY_NOT_FOUND:
-                        # key supposed to be in master but not found
-                        res['status'] = str(result.name)
+                if self.isMaster["flag"]:
+                    keyRangeCheck = self.checkKeyRange(payloadParams['key'])
+                    if keyRangeCheck == codes.SUCCESS:
+                        # key in master
+                        result = get(self.data, payloadParams['key'])
+                        if result == codes.ERR_KEY_NOT_FOUND:
+                            # key supposed to be in master but not found
+                            res['status'] = str(result.name)
+                        else:
+                            res['data'] = result
                     else:
-                        res['data'] = result
+                        # key not responsible
+                        res["status"] = str(codes.ERR_KEY_NOT_RESPONSIBLE.name)
+                        res["data"] = str(keyRangeCheck)
+                    print(res)
                 else:
-                    # key not responsible
-                    res["status"] = str(codes.ERR_KEY_NOT_RESPONSIBLE.name)
-                    res["data"] = str(keyRangeCheck)
-                print(res)
+                    firstChar = ord(payloadParams['key'][0])
+                    start, end = self.keyRange['range'].split('-')
+                    start, end = int(start), int(end)
+                    if firstChar > start and firstChar <= end:
+                        result = put(self.data, payloadParams['key'], payloadParams['value'])
+                        if result == codes.ERR_KEY_NOT_FOUND:
+                            res['status'] = str(result.name)
+                        else:
+                            res['data'] = result
+                    else:
+                        res['status'] = codes.ERR_KEY_NOT_RESPONSIBLE
 
             #elif payloadType == 'GETMULTIPLE':
             #    result = {}
@@ -324,15 +399,24 @@ class BackupKeyStoreService(BaseService):
             #        res['data'] = result
 
             elif payloadType == 'PUT':
-                keyRangeCheck = self.checkKeyRange(payloadParams['key'])
-                if keyRangeCheck == codes.SUCCESS:
-                    # key in master
-                    result = put(self.data, payloadParams['key'], payloadParams['value'])
-                    if result == codes.ERR_KEY_ALREADY_EXISTS:
-                        res['status'] = str(result.name)
+                if self.isMaster["flag"]:
+                    keyRangeCheck = self.checkKeyRange(payloadParams['key'])
+                    if keyRangeCheck == codes.SUCCESS:
+                        # key in master
+                        result = put(self.data, payloadParams['key'], payloadParams['value'])
+                        if result == codes.ERR_KEY_ALREADY_EXISTS:
+                            res['status'] = str(result.name)
+                    else:
+                        res["status"] = str(codes.ERR_KEY_NOT_RESPONSIBLE.name)
+                        res["data"] = str(keyRangeCheck)
                 else:
-                    res["status"] = str(codes.ERR_KEY_NOT_RESPONSIBLE.name)
-                    res["data"] = str(keyRangeCheck)
+                    firstChar = ord(payloadParams['key'][0])
+                    start, end = self.keyRange['range'].split('-')
+                    start, end = int(start), int(end)
+                    if firstChar > start and firstChar <= end:
+                        result = put(self.data, payloadParams['key'], payloadParams['value'])
+                    else:
+                        res['status'] = codes.ERR_KEY_NOT_RESPONSIBLE
 
             elif payloadType == 'REPLICA':
                 res['data'] = self.data
@@ -344,11 +428,6 @@ class BackupKeyStoreService(BaseService):
 
             msg = json.dumps(res)
             print("SERVER SENT: " + msg)
-            self.proto.sendMessage(msg.encode('utf8'))
-    def onMessage(self, payload, isBinary):
-        if not isBinary:
-            msg = "Echo 2 - {}".format(payload.decode('utf8'))
-            print(msg)
             self.proto.sendMessage(msg.encode('utf8'))
 
 
@@ -400,91 +479,81 @@ class ServiceServerProtocol(WebSocketServerProtocol):
             self.service.onClose(wasClean, code, reason)
 
 
-if __name__ == '__main__':
+zk = KazooClient(hosts='192.168.31.233:2181')
+zk.start()
 
-    zk = KazooClient(hosts='192.168.31.233:2181')
-    zk.start()
+import logging
+logging.basicConfig()
 
-    import logging
-    logging.basicConfig()
+currInstance = zk.create('/app/instance', ephemeral=True, sequence=True, makepath=True)
+printout("[INIT]", WHITE)
+print(currInstance, " started. ")
 
-    currInstance = zk.create('/app/instance', ephemeral=True, sequence=True, makepath=True)
-    printout("[INIT]", WHITE)
-    print(currInstance, " started. ")
+children = zk.get_children('/app')
+printout("[INIT]", WHITE)
+print(children)
 
-    children = zk.get_children('/app')
-    printout("[INIT]", WHITE)
-    print(children)
+portno = 0
+portnum = 0
 
-    portno = 0
+if len(children) == 1:
+        portno = 8080
+        printout("[MASTER]", RED)
+        print("MASTER INIT")
+        if zk.exists('/meta'):
+            zk.delete('/meta', recursive=True)
 
-    if len(children) == 1:
-            portno = 8080
-            printout("[MASTER]", RED)
-            print("MASTER INIT")
-            if zk.exists('/meta'):
-                zk.delete('/meta', recursive=True)
+        zk.create('/meta/master',b'8080', makepath=True)
+        zk.create('/meta/status',b'initializing', makepath=True)
+        zk.create('/meta/lastport','8080'.encode('utf-8'), makepath=True)
+        time.sleep(5)
+        children = zk.get_children('/app')
+        config = {
+            "lastDead": {
+                "backup": -1,
+                # backup is the server port whose data the dead server needs to backuo
+                "keystore": -1
+                # keystore is the server whose /backup it has to read from
+            },
+            "numOfServers": len(children)
+        }
+        zk.create('/meta/config', json.dumps(config).encode('utf-8'))
+        printout("[MASTER]", RED)
+        print(children)
+        totalKeyRange = 122 - 48 + 1
+        individualRange = int(math.floor(totalKeyRange / len(children)))
+        ranges = []
+        start = 48
+        for i in range(len(children)):
+            ranges.append(str(start) + "-" + str(start+individualRange))
+            start = start + individualRange + 1
+        ranges[-1] = ranges[-1].split("-")[0] + "-122" # change this later please
+        printout("[MASTER]", RED)
+        print("RANGES: ", ranges)
+        MasterService.keyRange["range"] = ranges[0]
+        MasterService.keyRange["status"] = "True"
 
-            zk.create('/meta/master',b'8080', makepath=True)
-            zk.create('/meta/status',b'initializing', makepath=True)
-            zk.create('/meta/lastport','8080'.encode('utf-8'), makepath=True)
-            time.sleep(5)
-            children = zk.get_children('/app')
-            config = {
-                "lastDead": {
-                    "backup": -1,
-                    # backup is the server port whose data the dead server needs to backuo
-                    "keystore": -1
-                    # keystore is the server whose /backup it has to read from
-                },
-                "numOfServers": len(children)
-            }
-            zk.create('/meta/config', json.dumps(config).encode('utf-8'))
-            printout("[MASTER]", RED)
-            print(children)
-            totalKeyRange = 122 - 48 + 1
-            individualRange = int(math.floor(totalKeyRange / len(children)))
-            ranges = []
-            start = 48
-            for i in range(len(children)):
-                ranges.append(str(start) + "-" + str(start+individualRange))
-                start = start + individualRange + 1
-            ranges[-1] = ranges[-1].split("-")[0] + "-122" # change this later please
-            printout("[MASTER]", RED)
-            print("RANGES: ", ranges)
-            MasterService.keyRange["range"] = ranges[0]
-            MasterService.keyRange["status"] == "True"
+        portnum, _ = zk.get('/meta/lastport')
+        portnum = int(portnum.decode('utf-8'))
 
-            portnum, _ = zk.get('/meta/lastport')
-            portnum = int(portnum.decode('utf-8'))
-            for port in range(8081, portnum + 1):
-               MasterService.keyRanges[ranges[port - 8080]] = port
+        print_some_times()
 
-               signal = {
-                   "type": "setkey",
-                   "params": {"data": ranges[port - 8080]}
-               }
+else:
+    printout("[SLAVE]", YELLOW)
+    print("SLAVE INIT")
+    portno, _ = zk.get('/meta/lastport')
+    portno = int(portno.decode('utf-8')) + 1
+    zk.set('/meta/lastport', str(portno).encode())
+    printout("[SLAVE]", YELLOW)
+    print("LISTENING FOR KEYSET")
 
-               ws = create_connection("ws://127.0.0.1:" + str(port) + "/keystore")
-               printout("[MASTER]", RED)
-               print("SENDING SIGNAL TO (" + str(port) + "): ", json.dumps(signal))
-               ws.send(json.dumps(signal))
-               result =  ws.recv()
-               printout("[MASTER]", RED)
-               print ("RECIEVED ACK. ")
-               ws.close()
+# set port number to retrieve later
+zk.set(currInstance, "{0}".format(str(portno)).encode('utf-8'))
 
-    else:
-        printout("[SLAVE]", YELLOW)
-        print("SLAVE INIT")
-        portno, _ = zk.get('/meta/lastport')
-        portno = int(portno.decode('utf-8')) + 1
-        zk.set('/meta/lastport', str(portno).encode())
-        printout("[SLAVE]", YELLOW)
-        print("LISTENING FOR KEYSET")
+factory = WebSocketServerFactory(u"ws://127.0.0.1:%s" % str(portno))
+factory.protocol = ServiceServerProtocol
+listenWS(factory)
 
-    factory = WebSocketServerFactory(u"ws://127.0.0.1:%s" % str(portno))
-    factory.protocol = ServiceServerProtocol
-    listenWS(factory)
 
-    reactor.run()
+reactor.run()
+print("after")
