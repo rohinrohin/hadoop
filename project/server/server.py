@@ -38,9 +38,7 @@ def scheduleSignals(a='default'):
             ss.close()
             printout("[MASTER]", RED)
             print ("RECIEVED ACK. ")
-            time.sleep(3)
-        time.sleep(10)
-        clusterStatusUp()
+            time.sleep(10)
 
 def scheduleMasterKeySet():
     # master keyset and propogate to backup
@@ -180,7 +178,7 @@ class KeyStoreService(BaseService):
                 msg = json.dumps(res)
                 printout("[SLAVE]", YELLOW)
                 print("SENT KEYSET ACK. ")
-                self.proto.sendMessage(msg.encode('utf8'))
+                #self.proto.sendMessage(msg.encode('utf8'))
 
                 lastport, _ = zk.get('/meta/lastport')
                 lastport = int(lastport.decode('utf-8'))
@@ -190,11 +188,20 @@ class KeyStoreService(BaseService):
                 printout("[SLAVE]", YELLOW)
                 print("KEYRANGE: ", self.keyRange)
 
-                print("Sleeping for all clients to awake. ")
-                time.sleep(10)
+                #print("Sleeping for all clients to awake. ")
+                #time.sleep(10)
                 print("Finished Sleeping")
                 print("ws://127.0.0.1:" + str(self.keyRange["backupPort"]) + "/backup")
-                ss = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
+                success = 0
+                ss = None
+                while(success == 0):
+                    try:
+                        ss = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
+                        success = 1
+                    except Exception:
+                        print("Server busy, trying again. ")
+                        time.sleep(5)
+
                 ss.send(json.dumps(payload))
                 ss.close()
                 print ("GOT ACK. ")
@@ -398,7 +405,7 @@ class BackupKeyStoreService(BaseService):
                 printout(self.isMaster["printString"], MAGENTA)
                 print("SENT ACK.")
                 msg = json.dumps(res)
-                self.proto.sendMessage(msg.encode('utf8'))
+                #self.proto.sendMessage(msg.encode('utf8'))
 
 
                 return
