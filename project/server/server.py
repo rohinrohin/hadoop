@@ -69,9 +69,9 @@ def scheduleChildWatcher():
                     config["lastDead"]["portno"] = deadInstancePort
                     config["lastDead"]["backup"] = deadInstanceBackup
                     # set keyrange for backup server
-                    for key, value in MasterService.keyRanges:
+                    for key, value in MasterService.keyRanges.items():
                         if value == deadInstancePort:
-                            MasterService.keyRanges[key] = deadInstanceBackup + "/backup"
+                            MasterService.keyRanges[key] = str(deadInstanceBackup) + "/backup"
 
             del config["mapper"][deadInstance] # remove now reduntant instance
             zk.set('/meta/config', json.dumps(config).encode('utf-8'))
@@ -675,8 +675,11 @@ if len(children) == 1:
         signalScheduler()
 
 else:
-    config, _  = zk.get('/meta/config')
-    config = json.loads(config.decode("utf-8"))
+    try:
+        config, _  = zk.get('/meta/config')
+        config = json.loads(config.decode("utf-8"))
+    except Exception as e:
+        pass
     # if config["lastDead"]["portno"] != -1:
     #     # some server died
     #     portno = config["lastDead"]["portno"]
