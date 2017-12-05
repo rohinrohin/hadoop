@@ -77,7 +77,7 @@ def connect_to_server(request, port_num, isMaster):
     ws = None
     try:
         ws = create_connection(address)
-    except:
+    except Exception:
         logger("CONNECTION FAILED!")
         return connect_to_server(request, MASTER, isMaster=True)
     ws.send(json.dumps(message).encode('utf8'))
