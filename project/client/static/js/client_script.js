@@ -13,7 +13,7 @@ $(function(){
 			success: function(response){
 				console.log(response);
 				$("#response-col").html("<div>Status: "+ response['status']+"</div><div>Key: "+ jsonPayload.key+"</div>");
-				
+
                 var x= $("#logs")
 				for(var i=0; i<$(response['logger']).length; i++)
 				{
@@ -21,7 +21,7 @@ $(function(){
 				}
 			var textarea=document.getElementById('logs');
 			textarea.scrollTop=textarea.scrollHeight;
-				
+
 			},
 			error: function(error){
 				console.log(error);
@@ -39,7 +39,7 @@ $(function(){
 			data: JSON.stringify(jsonPayload),
 			type: 'POST',
 			dataType: 'JSON',
-		
+
 			success: function(response){
 				console.log(response);
 				$("#response-col").html("<div>Status: "+ response['status']+"</div><div>Key: "+ jsonPayload.key +"</div><div>Value:     "+response['data'] + "</div>");
@@ -51,7 +51,7 @@ $(function(){
 				}
 				var textarea=document.getElementById('logs');
 				textarea.scrollTop=textarea.scrollHeight;
-					
+
 			},
 			error: function(error){
 				console.log(error);

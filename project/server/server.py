@@ -11,16 +11,77 @@ import time
 import math
 from websocket import create_connection
 import sched, time
+
 s = sched.scheduler(time.time, time.sleep)
-ss = sched.scheduler(time.time, time.sleep)
 
 PORT_NO = ""
 NUMBER_SERVERS = ""
 
 # helpers
 
+persistList = list()
+
+zk = KazooClient(hosts='192.168.31.233:2181')
+zk.start()
+
+def scheduleChildWatcher():
+    @zk.ChildrenWatch("/app")
+    def watch_children(children):
+        global persistList
+
+        nodelist = []
+        for child in children:
+            if 'instance' in child:
+                nodelist.append(child)
+
+        # print(persistList)
+        # print(nodelist)
+
+        persistSet = set(persistList)
+        childSet = set(nodelist)
+
+        deadSet = persistSet - childSet
+
+        if (len(deadSet) and len(persistSet)>len(childSet)):
+            # something died
+            config, _ = zk.get("/meta/config")
+            config = json.loads(config.decode("utf-8"))
+            print(deadSet)
+            deadInstance = str(list(deadSet)[0])
+            deadInstancePort = config["mapper"][deadInstance]
+            deadInstanceBackup = 8080 + ((abs(deadInstancePort-8080) +1) % config["numOfServers"])
+            if deadInstancePort == 8080:
+                # master died
+                if portno == deadInstanceBackup:
+                    # master backup slave
+                    print("NOTIFICATION:", deadSet, " [master] died. ")
+                    print("SLAVE PERSISTING DEAD MASTER CONFIG")
+                    config["lastDead"]["portno"] = deadInstancePort
+                    config["lastDead"]["backup"] = deadInstanceBackup
+            else:
+                # slave died
+                print("NOTIFICATION:", deadSet, " [slave] died. ")
+                masterPort, _ = zk.get('meta/master')
+                masterPort = masterPort.decode("utf-8")
+                if portno == int(masterPort):
+                    #inside master
+                    print("MASTER PERSISTING DEAD SLAVE CONFIG")
+                    config["lastDead"]["portno"] = deadInstancePort
+                    config["lastDead"]["backup"] = deadInstanceBackup
+                    # set keyrange for backup server
+                    for key, value in MasterService.keyRanges:
+                        if value == deadInstancePort:
+                            MasterService.keyRanges[key] = deadInstanceBackup + "/backup"
+
+            del config["mapper"][deadInstance] # remove now reduntant instance
+            zk.set('/meta/config', json.dumps(config).encode('utf-8'))
+            persistList = nodelist.copy()
+
+
 def scheduleSignals(a='default'):
     print("Start Signals Scheduled")
+    print("Child Watcher Scheduled")
+    scheduleChildWatcher()
     if portno == 8080:
         for port in range(8081, portnum + 1):
             MasterService.keyRanges[ranges[port - 8080]] = port
@@ -180,6 +241,7 @@ class KeyStoreService(BaseService):
                 print("SENT KEYSET ACK. ")
                 #self.proto.sendMessage(msg.encode('utf8'))
 
+
                 lastport, _ = zk.get('/meta/lastport')
                 lastport = int(lastport.decode('utf-8'))
                 numOfServers = lastport - 8080 + 1
@@ -205,6 +267,10 @@ class KeyStoreService(BaseService):
                 ss.send(json.dumps(payload))
                 ss.close()
                 print ("GOT ACK. ")
+
+                global persistList
+                persistList = zk.get_children('/app')
+                #print("SETTING PERSISTLIST: ", persistList)
 
                 return
 
@@ -405,6 +471,8 @@ class BackupKeyStoreService(BaseService):
                 printout(self.isMaster["printString"], MAGENTA)
                 print("SENT ACK.")
                 msg = json.dumps(res)
+                if portno == 8080:
+                    clusterStatusUp()
                 #self.proto.sendMessage(msg.encode('utf8'))
 
 
@@ -542,8 +610,6 @@ class ServiceServerProtocol(WebSocketServerProtocol):
             self.service.onClose(wasClean, code, reason)
 
 
-zk = KazooClient(hosts='192.168.31.233:2181')
-zk.start()
 
 import logging
 logging.basicConfig()
@@ -573,17 +639,25 @@ if len(children) == 1:
         time.sleep(5)
         children = zk.get_children('/app')
         config = {
+            "mapper": {},
             "lastDead": {
                 "backup": -1,
-                # backup is the server port whose data the dead server needs to backuo
-                "keystore": -1
-                # keystore is the server whose /backup it has to read from
+                # backup is the server port whose data the new server needs to retrieve
+                "portno": -1
+                # dead server portno
             },
             "numOfServers": len(children)
         }
-        zk.create('/meta/config', json.dumps(config).encode('utf-8'))
         printout("[MASTER]", RED)
+        children.sort()
+        persistList = children
         print(children)
+        counter = 0
+        for child in children:
+            config["mapper"][child] = 8080 + counter
+            counter = counter + 1
+        zk.create('/meta/config', json.dumps(config).encode('utf-8'))
+
         totalKeyRange = 122 - 48 + 1
         individualRange = int(math.floor(totalKeyRange / len(children)))
         start = 48
@@ -597,9 +671,40 @@ if len(children) == 1:
         portnum, _ = zk.get('/meta/lastport')
         portnum = int(portnum.decode('utf-8'))
 
+
         signalScheduler()
 
 else:
+    config, _  = zk.get('/meta/config')
+    config = json.loads(config.decode("utf-8"))
+    # if config["lastDead"]["portno"] != -1:
+    #     # some server died
+    #     portno = config["lastDead"]["portno"]
+    #     masterDied = True if portno == 8080 else False
+    #     portbackup = config["lastDead"]["backup"]
+    #     print("REPLACEMENT SERVER FOR ", "[master]: " if masterDied else "[slave]: ",portno)
+    #     if masterDied:
+    #         config[currInstance] = portno # remap new instance
+    #         payload = {
+    #             type:"REPLICA"
+    #         }
+    #         print("ws://127.0.0.1:" + str(portbackup) + "/backup")
+    #         ss = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
+    #         ss.send(json.dumps(payload))
+    #         response = ss.recv()
+    #         response = json.loads(response)
+    #
+    #         MasterService.keyRange = response["keyRange"]
+    #         MasterService.keyRanges = response["keyRanges"]
+    #         MasterService.data = response["data"]
+    #
+    #         ss.close()
+    #
+    #     else:
+    #         pass
+    #
+    #     zk.set('/meta/config', json.dumps(config).encode('utf-8'))
+
     printout("[SLAVE]", YELLOW)
     print("SLAVE INIT")
     portno, _ = zk.get('/meta/lastport')
@@ -607,6 +712,8 @@ else:
     zk.set('/meta/lastport', str(portno).encode())
     printout("[SLAVE]", YELLOW)
     print("LISTENING FOR KEYSET")
+    print("Child watcher scheduled")
+    scheduleChildWatcher()
 
 # set port number to retrieve later
 zk.set(currInstance, "{0}".format(str(portno)).encode('utf-8'))

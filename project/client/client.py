@@ -3,6 +3,7 @@ import json
 import sys
 import ast
 from enum import Enum
+from collections import OrderedDict
 
 MASTER = "8080"
 LOG = []
@@ -13,7 +14,6 @@ def logger(log):
 def clean_log():
     LOG = []
 
-from collections import OrderedDict
 
 class LimitedSizeDict(OrderedDict):
   def __init__(self, *args, **kwds):
@@ -44,7 +44,7 @@ class codes(Enum):
 def connect_to_server(request, port_num, isMaster):
     address_append = "/keystore" if not isMaster else "/master"
     address="ws://127.0.0.1:"+port_num+address_append
-    logger(address)
+    #logger(address)
     if request['type'] == "get":
         if isMaster:
             listCacheKeys=list(client_cache.keys())
@@ -81,7 +81,7 @@ def connect_to_server(request, port_num, isMaster):
         client_cache[request['key']] = port_num
         if 'data' in result:
             logger('Data returned: '+result['data'])
-        logger(client_cache)  #if the master contains the key. 9001 is the current static master address
+        logger("Current Cache:" + json.dumps(client_cache))  #if the master contains the key. 9001 is the current static master address
     elif(result['status'] == codes.ERR_KEY_NOT_RESPONSIBLE.name):
         if "data" in result:
             logger("Contacting port number "+result["data"])
@@ -94,11 +94,14 @@ def connect_to_server(request, port_num, isMaster):
             # PARTHA COME CALL ME WHEN YOU ARE SEEING THIS CODE
             return connect_to_server(request, MASTER, isMaster=True)
 
-    return {
+    LOG_COPY = copy.deepcopy(LOG)
+    result = {
         'status': result['status'],
         'data': result['data'] if 'data' in result else '',
-        'logger': LOG
+        'logger': LOG_COPY
     }
+    clean_log()
+    return result
 
 def send_request(request):
     request = request.split()
@@ -113,14 +116,17 @@ def send_request(request):
     clean_log()
 
 def send_request_json(request):
+    logger(" ---------------- " + request['type'].upper())
     request = {
         'type': request['type'],
         'key': request['key'],
         'value': request['value'] if 'value' in request else ''
     }
-    logger(request)
-    return connect_to_server(request, MASTER, isMaster=True)
-    clean_log()
+    logger("Client Request: " + json.dumps(request))
+    result = connect_to_server(request, MASTER, isMaster=True)
+    logger(" ---------------")
+
+    return result
 
 if __name__ == '__main__':
 
