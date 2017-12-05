@@ -43,6 +43,9 @@ class codes(Enum):
 
 def connect_to_server(request, port_num, isMaster):
     address_append = "/keystore" if not isMaster else "/master"
+    # if a server has died and the backup port is returned back
+    if '/backup' in port_num:
+        address_append = ''
     address="ws://127.0.0.1:"+port_num+address_append
     #logger(address)
     if request['type'] == "get":
@@ -71,7 +74,12 @@ def connect_to_server(request, port_num, isMaster):
         }
     }
     logger('Establishing connection with '+address)
-    ws = create_connection(address)
+    ws = None
+    try:
+        ws = create_connection(address)
+    except:
+        logger("CONNECTION FAILED!")
+        return connect_to_server(request, MASTER, isMaster=True)
     ws.send(json.dumps(message).encode('utf8'))
     result =  ws.recv()
     result = json.loads(result)
