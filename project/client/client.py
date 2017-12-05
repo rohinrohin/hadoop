@@ -1,17 +1,20 @@
 from websocket import create_connection
 import json
 import sys
-import ast
+from ast import literal_eval
 from enum import Enum
 from collections import OrderedDict
+import copy
 
 MASTER = "8080"
 LOG = []
+CACHE_HIT = False
 
 def logger(log):
     LOG.append(log)
 
 def clean_log():
+    global LOG
     LOG = []
 
 
@@ -41,7 +44,7 @@ class codes(Enum):
 	ERR_KEY_NOT_FOUND = 5
     #ERR_SERVER_NOT_INIT = 6
 
-def connect_to_server(request, port_num, isMaster):
+def connect_to_server(request, port_num, isMaster, useCache=True):
     address_append = "/keystore" if not isMaster else "/master"
     # if a server has died and the backup port is returned back
     if '/backup' in port_num:
@@ -49,7 +52,7 @@ def connect_to_server(request, port_num, isMaster):
     address="ws://127.0.0.1:"+port_num+address_append
     #logger(address)
     if request['type'] == "get":
-        if isMaster:
+        if isMaster and useCache:
             listCacheKeys=list(client_cache.keys())
             for i in listCacheKeys:
                 if i == request['key']:
@@ -57,11 +60,11 @@ def connect_to_server(request, port_num, isMaster):
                         logger("CACHE HIT, port returned: "+client_cache[i])
                         return connect_to_server(request, str(client_cache[i]), isMaster=False)
             logger('CACHE MISS')
-    elif request['type'] == "put":
-        if request['value'][0] == '{':
-            request['value'] = literal_eval(request['value'])
-        else:
-            request['value'] = request['value'].strip()
+    #elif request['type'] == "put":
+        #if request['value'][0] == '{':
+        #request['value'] = literal_eval(request['value'])
+        #else:
+        #    request['value'] = request['value'].strip()
     #elif method == "getmultiple":
     #    params = {
     #        "keys": request[1:]
@@ -79,17 +82,18 @@ def connect_to_server(request, port_num, isMaster):
         ws = create_connection(address)
     except Exception:
         logger("CONNECTION FAILED!")
-        return connect_to_server(request, MASTER, isMaster=True)
+        return connect_to_server(request, MASTER, isMaster=True, useCache=False)
     ws.send(json.dumps(message).encode('utf8'))
     result =  ws.recv()
     result = json.loads(result)
     logger(result["status"])
     ws.close()
     if(result['status'] == codes.SUCCESS.name):
-        client_cache[request['key']] = port_num
+        if "/backup" not in port_num:
+            # backup in port_num so don't cache since server might come up
+            client_cache[request['key']] = port_num
         if 'data' in result:
             logger('Data returned: '+result['data'])
-        logger("Current Cache:" + json.dumps(client_cache))  #if the master contains the key. 9001 is the current static master address
     elif(result['status'] == codes.ERR_KEY_NOT_RESPONSIBLE.name):
         if "data" in result:
             logger("Contacting port number "+result["data"])
@@ -102,6 +106,7 @@ def connect_to_server(request, port_num, isMaster):
             # PARTHA COME CALL ME WHEN YOU ARE SEEING THIS CODE
             return connect_to_server(request, MASTER, isMaster=True)
 
+    logger("Current Cache:" + json.dumps(client_cache))  #if the master contains the key. 9001 is the current static master address
     LOG_COPY = copy.deepcopy(LOG)
     result = {
         'status': result['status'],
