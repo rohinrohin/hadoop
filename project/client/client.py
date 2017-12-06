@@ -1,3 +1,4 @@
+from kazoo.client import KazooClient
 from websocket import create_connection
 import json
 import sys
@@ -8,7 +9,7 @@ import copy
 
 MASTER = "8080"
 LOG = []
-CACHE_HIT = False
+CLUSTER_STATUS = ""
 
 def logger(log):
     LOG.append(log)
@@ -17,6 +18,21 @@ def clean_log():
     global LOG
     LOG = []
 
+zk = KazooClient(hosts='192.168.31.233:2181')
+
+def start_zookeeper():
+    zk.start()
+    @zk.DataWatch('/meta/master')
+    def get_master(data, stat):
+        global MASTER
+        MASTER = data.decode("utf-8")
+        logger("Current MASTER port: "+MASTER)
+
+    @zk.DataWatch('/meta/status')
+    def cluster_status(data, stat):
+        global CLUSTER_STATUS
+        CLUSTER_STATUS = data.decode("utf-8")
+        logger("CLUSTER STATUS: "+CLUSTER_STATUS)
 
 class LimitedSizeDict(OrderedDict):
   def __init__(self, *args, **kwds):
@@ -54,12 +70,15 @@ def connect_to_server(request, port_num, isMaster, useCache=True):
     if request['type'] == "get":
         if isMaster and useCache:
             listCacheKeys=list(client_cache.keys())
+            cacheMiss = True
             for i in listCacheKeys:
                 if i == request['key']:
+                    cacheMiss = False
+                    logger("CACHE HIT, port returned: "+client_cache[i])
                     if str(client_cache[i]) != MASTER:
-                        logger("CACHE HIT, port returned: "+client_cache[i])
                         return connect_to_server(request, str(client_cache[i]), isMaster=False)
-            logger('CACHE MISS')
+            if cacheMiss:
+                logger('CACHE MISS')
     #elif request['type'] == "put":
         #if request['value'][0] == '{':
         #request['value'] = literal_eval(request['value'])
@@ -123,6 +142,7 @@ def send_request(request):
         'key': request[1],
         'value': ''.join(request[2:]) if len(request) >= 3 else ''
     }
+    start_zookeeper()
     print("Client's request: ",request)
     response = connect_to_server(request, MASTER, isMaster=True)
     print(response)
@@ -135,11 +155,15 @@ def send_request_json(request):
         'key': request['key'],
         'value': request['value'] if 'value' in request else ''
     }
+    start_zookeeper()
     logger("Client Request: " + json.dumps(request))
     result = connect_to_server(request, MASTER, isMaster=True)
     logger(" ---------------")
 
     return result
+
+def get_cluster_status():
+    return CLUSTER_STATUS
 
 if __name__ == '__main__':
 
