@@ -1,4 +1,6 @@
 import txaio
+import copy
+import traceback
 from twisted.internet import reactor
 from autobahn.twisted.websocket import WebSocketServerFactory, \
     WebSocketServerProtocol, \
@@ -51,15 +53,19 @@ def scheduleChildWatcher():
             deadInstance = str(list(deadSet)[0])
             deadInstancePort = config["mapper"][deadInstance]
             deadInstanceBackup = 8080 + ((abs(deadInstancePort-8080) +1) % config["numOfServers"])
+
             if deadInstancePort == 8080:
                 # master died
-                zk.set('/meta/master', (str(deadInstanceBackup)+'/backup').encode('utf-8'))
-                if portno == deadInstanceBackup:
-                    # master backup slave
                     print("NOTIFICATION:", deadSet, " [master] died. ")
-                    print("SLAVE PERSISTING DEAD MASTER CONFIG")
-                    config["lastDead"]["portno"] = deadInstancePort
-                    config["lastDead"]["backup"] = deadInstanceBackup
+                    if portno == deadInstanceBackup:
+                        print("MASTER DIED, MASTER'S BACKUP DOING HANDOVER. ")
+                        # master's backup slave
+                        zk.set('/meta/master', (str(deadInstanceBackup)+'/backup').encode('utf-8')) # setting new master
+                        print("NOTIFICATION:", deadSet, " [master] died. ")
+                        print("SLAVE PERSISTING DEAD MASTER CONFIG")
+                        config["lastDead"]["portno"] = deadInstancePort
+                        config["lastDead"]["backup"] = deadInstanceBackup
+                        print("HANDOVER COMPLETE.  ")
             else:
                 # slave died
                 print("NOTIFICATION:", deadSet, " [slave] died. ")
@@ -318,12 +324,15 @@ class KeyStoreService(BaseService):
                 start, end = int(start), int(end)
                 if firstChar > start and firstChar <= end:
                     result = put(self.data, payloadParams['key'], payloadParams['value'])
-                    ws = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
-                    ws.send(json.dumps(payload))
-                    print ("Reeiving...")
-                    result =  ws.recv()
-                    print ("got ack. ")
-                    ws.close()
+                    try:
+                        ws = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
+                        ws.send(json.dumps(payload))
+                        print ("Reeiving...")
+                        result =  ws.recv()
+                        print ("got ack. ")
+                        ws.close()
+                    except Exception as e:
+                        print("UNABLE TO CONTACT BACKUP SERVER. MAYBE SERVER DOWN? ")
                 else:
                     res['status'] = codes.ERR_KEY_NOT_RESPONSIBLE
 
@@ -426,12 +435,15 @@ class MasterService(BaseService):
                 if keyRangeCheck == codes.SUCCESS:
                     # key in master
                     result = put(self.data, payloadParams['key'], payloadParams['value'])
-                    ws = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
-                    ws.send(json.dumps(payload))
-                    print ("Reeiving...")
-                    result =  ws.recv()
-                    print ("got ack. ")
-                    ws.close()
+                    try:
+                        ws = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
+                        ws.send(json.dumps(payload))
+                        print ("Reeiving...")
+                        result =  ws.recv()
+                        print ("got ack. ")
+                        ws.close()
+                    except Exception as e:
+                        print("UNABLE TO CONTACT BACKUP SERVER. MAYBE SERVER DOWN?")
                     if result == codes.ERR_KEY_ALREADY_EXISTS:
                         res['status'] = str(result.name)
                 else:
@@ -668,7 +680,7 @@ if len(children) == 1:
             zk.delete('/meta', recursive=True)
 
         zk.create('/meta/master',b'8080', makepath=True)
-        zk.create('/meta/status',b'initializing', makepath=True)
+        zk.create('/meta/status','INIT'.encode("utf-8"), makepath=True)
         zk.create('/meta/lastport','8080'.encode('utf-8'), makepath=True)
         time.sleep(5)
         children = zk.get_children('/app')
@@ -715,16 +727,18 @@ else:
         print("got /meta/config")
         # dead server detected
         # REINCARNATION MODE
-        serverDied = True
         config = json.loads(config.decode("utf-8"))
 
         if config["lastDead"]["portno"] != -1:
+            serverDied = True
             portno = config["lastDead"]["portno"]
             masterDied = True if portno == 8080 else False
             portbackup = config["lastDead"]["backup"]
 
 
             print("REINCARNATION SERVER BOOTING FOR ", "[master]: " if masterDied else "[slave]: ", portno)
+
+            # get it servers own data from the next server/backup
             payload = {
                 "type":"REPLICA",
                 "params": ""
@@ -736,16 +750,64 @@ else:
             ss.close()
             response = json.loads(response)
 
+            payload = {
+                "type":"REPLICA",
+                "params": ""
+            }
+
+            # get its /backup contents from previous servers/keystore or /master
+            backupContentPort = (8080 + config["numOfServers"] - 1) if (abs(portno-8080)-1) < 0 else portno-1
+            backupContentPortAppend = "/master" if backupContentPort == 8080 else "/keystore"
+
+            print("ws://localhost:" + str(backupContentPort) + str(backupContentPortAppend))
+            ss = create_connection("ws://localhost:" + str(backupContentPort) + str(backupContentPortAppend))
+            ss.send(json.dumps(payload))
+            backupResponse= ss.recv()
+            ss.close()
+            backupResponse = json.loads(backupResponse)
+
+            print("/backup content response", backupResponse)
+            print("/content response", backupResponse)
+
+            new_config = copy.deepcopy(config)
+
+            new_config["mapper"][currInstance.split("/")[2]] = portno # remap new instance
+            new_config["lastDead"] = {
+                "backup": -1,
+                "portno": -1
+            }
+            zk.set('/meta/config', json.dumps(new_config).encode('utf-8'))
+
             if masterDied:
 
                 MasterService.keyRange = response["data"]["keyRange"]
-                MasterService.keyRanges = response["keyRanges"]
-                MasterService.data = response["data"]
+                MasterService.keyRanges = response["data"]["keyRanges"]
+                MasterService.data = response["data"]["data"]
+
+                BackupKeyStoreService.keyRange = backupResponse["data"]["keyRange"]
+                BackupKeyStoreService.data = backupResponse["data"]
+
+                print ("MASTER REINCARNATING ITSELF")
+                zk.set('/meta/master', str(portno).encode('utf-8'))
+                zk.set("/meta/status", "STABLE".encode("utf-8"))
+                print ("MASTER KEY HANDOVER DONE")
+
+                print ("CLUSTER IS NOW STABLE.")
+
+
 
             else:
 
+                BackupKeyStoreService.keyRange = backupResponse["data"]["keyRange"]
+                BackupKeyStoreService.data = backupResponse["data"]
+                if backupContentPort == 8080:
+                    # masters backup is in /backup
+                    BackupKeyStoreService.keyRanges = backupResponse["data"]["keyRanges"]
+
+
                 KeyStoreService.keyRange = response["data"]["keyRange"]
                 KeyStoreService.data = response["data"]["data"]
+
                 payload = {
                     "type": "REINCARNATE",
                     "params": {
@@ -762,16 +824,11 @@ else:
                 ss.close()
                 print("SERVER BOOTED")
 
-                pass
 
-            config["mapper"][currInstance] = portno # remap new instance
-            config["lastDead"] = {
-                "backup": -1,
-                "portno": -1
-            }
-            zk.set('/meta/config', json.dumps(config).encode('utf-8'))
 
     except Exception as e:
+        print(e)
+        print(traceback.format_exc())
         print("Failed to get /meta/config")
 
     if not serverDied:

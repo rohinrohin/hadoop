@@ -18,7 +18,7 @@ def clean_log():
     global LOG
     LOG = []
 
-zk = KazooClient(hosts='192.168.31.233:2181')
+zk = KazooClient(hosts='127.0.0.1:2181')
 
 def start_zookeeper():
     zk.start()
