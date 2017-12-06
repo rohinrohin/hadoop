@@ -49,7 +49,7 @@ def scheduleChildWatcher():
             zk.set('/meta/status', 'UNSTABLE'.encode('utf-8'))
             config, _ = zk.get("/meta/config")
             config = json.loads(config.decode("utf-8"))
-            print(deadSet)
+            #print(deadSet)
             deadInstance = str(list(deadSet)[0])
             deadInstancePort = config["mapper"][deadInstance]
             deadInstanceBackup = 8080 + ((abs(deadInstancePort-8080) +1) % config["numOfServers"])
@@ -98,9 +98,9 @@ def scheduleChildWatcher():
 
 def scheduleSignals(a='default'):
     printout("[MASTER]", RED)
-    print("Start Signals Scheduled")
+    print("START SIGNAL SCHEDULED")
     printout("[MASTER]", RED)
-    print("Child Watcher Scheduled")
+    print("CHILD WATCHER SCHEDULED")
     scheduleChildWatcher()
     if portno == 8080:
         for port in range(8081, portnum + 1):
@@ -152,7 +152,7 @@ def scheduleMasterKeySet():
 
 def clusterStatusUp():
     printout("[MASTER]", RED)
-    print(" ------- CLUSTER STATUS UP ------- ")
+    print(" -------------------- CLUSTER STATUS UP --------------------")
     zk.set('/meta/status', 'STABLE'.encode('utf-8'))
 
 def signalScheduler():
@@ -374,7 +374,7 @@ class MasterService(BaseService):
     metadata = {}
     data = {}
     keyRange = {"status": "false", "range": "", "backupPort": ""}
-    keyRanges = {}
+    keyRanges = {"ranges": {}}
 
 
     def checkKeyRange(self, key):
@@ -382,11 +382,11 @@ class MasterService(BaseService):
         start, end = int(start), int(end)
         firstChar = ord(key[0])
         if not (firstChar > start and firstChar <= end):
-            for key in self.keyRanges:
+            for key in self.keyRanges["ranges"]:
                 start, end = key.split('-')
                 start, end = int(start), int(end)
                 if firstChar > start and firstChar <= end:
-                    return self.keyRanges[key]
+                    return self.keyRanges["ranges"][key]
 
         return (codes.SUCCESS)
 
@@ -410,9 +410,9 @@ class MasterService(BaseService):
                 deadInstancePort = payloadParams["deadPort"]
                 deadInstanceBackup = payloadParams["backupPort"]
                 print("HANDING OVER ", str(deadInstanceBackup) + "/backup", "TO ", deadInstancePort)
-                for key, value in self.keyRanges.items():
+                for key, value in self.keyRanges["ranges"].items():
                     if value == str(deadInstanceBackup)+"/backup":
-                        self.keyRanges[key] = deadInstancePort
+                        self.keyRanges["ranges"][key] = deadInstancePort
 
                 printout("[MASTER]", RED)
                 print("REINCARNATION SUCCESSFUL")
@@ -615,7 +615,7 @@ class BackupKeyStoreService(BaseService):
                 if self.isMaster["flag"]:
                     res['data'] = {
                         'keyRange': self.keyRange,
-                        'keyRanges': self.keyRanges["ranges"],
+                        'keyRanges': self.keyRanges,
                         'data': self.data
                     }
                 else:
@@ -744,9 +744,9 @@ if len(children) == 1:
         portnum, _ = zk.get('/meta/lastport')
         portnum = int(portnum.decode("utf-8"))
 
-        MasterService.keyRanges[ranges[0]] = 8080
+        MasterService.keyRanges["ranges"][ranges[0]] = 8080
         for port in range(8081, portnum + 1):
-            MasterService.keyRanges[ranges[port - 8080]] = port
+            MasterService.keyRanges["ranges"][ranges[port - 8080]] = port
 
         printout("[MASTER]", RED)
         print("RANGES: ", ranges)
@@ -769,8 +769,8 @@ else:
             portno = config["lastDead"]["portno"]
             masterDied = True if portno == 8080 else False
             portbackup = config["lastDead"]["backup"]
-            printStr = "[MASTER]" if masterDied else "[SLAVE]"
-            colorr = RED if masterDied else YELLOW
+            printStr = "[REINCARNATION]"
+            colorr = CYAN
             printout(printStr, colorr)
             print("REINCARNATION SERVER BOOTING FOR ", "[master]: " if masterDied else "[slave]: ", portno)
 
@@ -822,13 +822,14 @@ else:
                 BackupKeyStoreService.keyRange = backupResponse["data"]["keyRange"]
                 BackupKeyStoreService.data = backupResponse["data"]
 
-                printout("[MASTER]", RED)
+                printout("[REINCARNATION]", RED)
                 print ("MASTER REINCARNATING ITSELF")
                 zk.set('/meta/master', str(portno).encode('utf-8'))
-                printout("[MASTER]", RED)
+                printout("[REINCARNATION]", RED)
                 print ("MASTER KEY HANDOVER DONE")
                 scheduleChildWatcher()
 
+                printout("[MASTER]", RED)
                 print ("CLUSTER IS NOW STABLE.")
 
 
