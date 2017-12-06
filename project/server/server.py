@@ -66,6 +66,8 @@ def scheduleChildWatcher():
                         config["lastDead"]["portno"] = deadInstancePort
                         config["lastDead"]["backup"] = deadInstanceBackup
                         print("HANDOVER COMPLETE.  ")
+                        print("SETTING CONFIG: ", config)
+                        zk.set('/meta/config', json.dumps(config).encode('utf-8'))
             else:
                 # slave died
                 print("NOTIFICATION:", deadSet, " [slave] died. ")
@@ -81,8 +83,10 @@ def scheduleChildWatcher():
                         if value == deadInstancePort:
                             MasterService.keyRanges[key] = str(deadInstanceBackup) + "/backup"
 
+                    print("SETTING CONFIG: ", config)
+                    zk.set('/meta/config', json.dumps(config).encode('utf-8'))
+
             del config["mapper"][deadInstance] # remove now reduntant instance
-            zk.set('/meta/config', json.dumps(config).encode('utf-8'))
         persistList = nodelist.copy()
 
 
@@ -92,7 +96,6 @@ def scheduleSignals(a='default'):
     scheduleChildWatcher()
     if portno == 8080:
         for port in range(8081, portnum + 1):
-            MasterService.keyRanges[ranges[port - 8080]] = port
 
             signal = {
                "type": "setkey",
@@ -126,6 +129,8 @@ def scheduleMasterKeySet():
        "type": "setkey",
        "params": {"data": MasterService.keyRange["range"], "master": "true", "keyRanges": MasterService.keyRanges, "backupPort": MasterService.keyRange["backupPort"]}
     }
+
+    print("SIGNAL", signal)
 
     ss.send(json.dumps(signal))
     ss.close()
@@ -199,8 +204,6 @@ def put(data, key, value):
     if False:
         #todo: key-server mapping check
         return codes.ERR_KEY_NOT_RESPONSIBLE
-    elif key in data:
-        return codes.ERR_KEY_ALREADY_EXISTS
 
     data[key] = value
     return codes.SUCCESS
@@ -467,18 +470,18 @@ class BackupKeyStoreService(BaseService):
     isMaster = {"flag": "false", "printString": ""}
     data = {}
     keyRange = {"status": "false", "range": "", "backupPort": ""}
-    keyRanges = {}
+    keyRanges = {"ranges": {}}
 
     def checkKeyRange(self, key):
         start, end = self.keyRange['range'].split('-')
         start, end = int(start), int(end)
         firstChar = ord(key[0])
         if not (firstChar > start and firstChar <= end):
-            for key in self.keyRanges:
+            for key in self.keyRanges["ranges"]:
                 start, end = key.split('-')
                 start, end = int(start), int(end)
                 if firstChar > start and firstChar <= end:
-                    return self.keyRanges[key]
+                    return self.keyRanges["ranges"][key]
 
         return (codes.SUCCESS)
 
@@ -504,7 +507,7 @@ class BackupKeyStoreService(BaseService):
                     printout("[MASTER-BACKUP]", MAGENTA)
                     print("ASSUMED MASTER BACKUP ROLE")
                     # check if backup of master
-                    self.keyRanges = payloadParams["keyRanges"]
+                    self.keyRanges["ranges"] = payloadParams["keyRanges"]
                     self.isMaster["flag"] = True
                 else:
                     self.isMaster["printString"] = "[SLAVE-BACKUP]"
@@ -587,7 +590,7 @@ class BackupKeyStoreService(BaseService):
                 if self.isMaster["flag"]:
                     res['data'] = {
                         'keyRange': self.keyRange,
-                        'keyRanges': self.keyRanges,
+                        'keyRanges': self.keyRanges["ranges"],
                         'data': self.data
                     }
                 else:
@@ -711,6 +714,17 @@ if len(children) == 1:
             ranges.append(str(start) + "-" + str(start+individualRange))
             start = start + individualRange + 1
         ranges[-1] = ranges[-1].split("-")[0] + "-122" # change this later please
+
+        portnum, _ = zk.get('/meta/lastport')
+        portnum = int(portnum.decode("utf-8"))
+
+        MasterService.keyRanges[ranges[0]] = 8080
+        for port in range(8081, portnum + 1):
+            MasterService.keyRanges[ranges[port - 8080]] = port
+
+
+        print(MasterService.keyRanges)
+
         printout("[MASTER]", RED)
         print("RANGES: ", ranges)
 
@@ -767,7 +781,7 @@ else:
             backupResponse = json.loads(backupResponse)
 
             print("/backup content response", backupResponse)
-            print("/content response", backupResponse)
+            print("/content response", response)
 
             new_config = copy.deepcopy(config)
 
@@ -791,15 +805,17 @@ else:
                 zk.set('/meta/master', str(portno).encode('utf-8'))
                 zk.set("/meta/status", "STABLE".encode("utf-8"))
                 print ("MASTER KEY HANDOVER DONE")
+                scheduleChildWatcher()
 
                 print ("CLUSTER IS NOW STABLE.")
+
 
 
 
             else:
 
                 BackupKeyStoreService.keyRange = backupResponse["data"]["keyRange"]
-                BackupKeyStoreService.data = backupResponse["data"]
+                BackupKeyStoreService.data = backupResponse["data"]["data"]
                 if backupContentPort == 8080:
                     # masters backup is in /backup
                     BackupKeyStoreService.keyRanges = backupResponse["data"]["keyRanges"]
@@ -822,8 +838,9 @@ else:
                 ss.send(json.dumps(payload))
                 #response = ss.recv()
                 ss.close()
-                print("SERVER BOOTED")
+                scheduleChildWatcher()
 
+                print("SERVER BOOTED")
 
 
     except Exception as e:
