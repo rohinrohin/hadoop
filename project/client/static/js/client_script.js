@@ -1,4 +1,32 @@
 $(function(){
+	function changeIndicator(color, status){
+		clusterIndicator = document.getElementById("clusterIndicator");
+		clusterIndicator.innerHTML = "Cluster is "+status;
+		var canvas = document.getElementById("circlecanvas");
+		var context = canvas.getContext("2d");
+		context.arc(25, 25, 15, 0, Math.PI * 2, false);
+		context.fillStyle = color;
+		context.fill()
+	}
+	changeIndicator("white", "INITIALIZING");
+	function getStatus(){
+		$.ajax({
+			url: '/status',
+			type: 'POST',
+			success: function(status){
+				console.log(status);
+				if(status == "STABLE")
+					changeIndicator("green", status);
+				else if(status == "UNSTABLE")
+					changeIndicator("red", status);
+				setTimeout(getStatus, 5000);
+			},
+			error: function(err){
+				console.log(err);
+			}
+		});
+	}
+	setTimeout(getStatus, 5000);
 	$('#put-button').click(function(){
 		var jsonPayload = {
 			type:'put',

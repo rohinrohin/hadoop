@@ -1,5 +1,5 @@
 import os
-from client import send_request_json, start_zookeeper
+from client import send_request_json, start_zookeeper, get_cluster_status
 from flask import Flask,render_template, request,json
 
 app = Flask(__name__)
@@ -25,7 +25,10 @@ def requestter():
     #return render_template('client_input.html', resp=response)
     return json.dumps(response);
 
-
+# getting the status of the cluster
+@app.route('/status', methods=['POST'])
+def status_retrieval():
+    return get_cluster_status()
 
 if __name__=="__main__":
     app.run(debug=True, port=9000)

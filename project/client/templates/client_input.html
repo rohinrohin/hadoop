@@ -1,14 +1,14 @@
 <html>
         <script src="static/js/jquery-1.9.0.js"></script>
         <script src="static/js/client_script.js"></script>
-            
+
 <link rel="stylesheet" type="text/css" href="/static/semantic/semantic.min.css">
-<link href="https://fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet"> 
+<link href="https://fonts.googleapis.com/css?family=Source+Code+Pro" rel="stylesheet">
     <script
       src="https://code.jquery.com/jquery-3.1.1.min.js"
       integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
       crossorigin="anonymous"></script>
-    <script src="/static/semantic/semantic.min.js"></script>  
+    <script src="/static/semantic/semantic.min.js"></script>
     <head>
     <title>Distributed Key Store</title>
     <script>
@@ -38,21 +38,14 @@
 }
     </style>
 </head>
-    <body style="background-color:rgb(161, 240, 15); margin:20px; padding:10px; align:center;">
-            <p style="color:aliceblue ; position:absolute; width:200px; top:2%; right:10%; font-size:30px">Cluster status:</p>
+    <body style="background-color:#546E7A; margin:20px; padding:10px; align:center;">
+            <p id="clusterIndicator" style="color:aliceblue ; position:absolute; width:210px; top:3.5%; right:10%; font-size:20px">Cluster is INITIALIZING</p>
             <canvas id="circlecanvas" width="50" height="50" style="position:absolute; top:2%; right:5%" ></canvas>
-        
-        <script>
-            var canvas = document.getElementById("circlecanvas");
-            var context = canvas.getContext("2d");
-            context.arc(25, 25, 25, 0, Math.PI * 2, false);
-            context.fillStyle = "red";
-            context.fill()
-        </script>
+
         <div id="main-wrapper" style="position:relative; top:6%; margin:5px; padding:25px;display:flex; flex-direction:row; width:100%; height:55%; background-color:black">
-                <div id="request-col" style="flex:1; padding:20px; background-color:black; color:whitesmoke;font-size:20px;text-align:center;border:2px solid rgb(161,240,15);" > <p style="font-size:30px">CLIENT REQUEST</p> 
+                <div id="request-col" style="flex:1; padding:20px; background-color:black; color:whitesmoke;font-size:20px;text-align:center;border:2px solid #546E7A;" > <p style="font-size:30px">CLIENT REQUEST</p>
                         <div style="display:flex; justify-content:center;align-items:center;">
-                                
+
                                         <select class="ui dropdown" onchange="javascript:show_div(this.value);" id="selection" style="position:fixed; top:30%; ;width:250px">
                                             <option selected="true" disabled="disabled" >Selection</option>
                                             <option value= "get" >GET</option>
@@ -63,32 +56,32 @@
                                             <button class="ui button" id="get-button">Search</button>
                                         </div>
                                         <div id="put-div" class="ui input" style="display:flex; flex-direction:column;visibility:hidden;position:fixed; align:center;top:40%">
-  
+
                                             <input  text="text" placeholder="Enter the key" name="put_key" id="put_key" style=" margin:5px; width:400px"/>
-                                                                                     
+
                                             <input text="text" placeholder="Enter the value" name="put_value" id="put_value" style=" margin:5px"/>
                                             <br>
-                                            <button name="Put" value="Put" class="ui button" id="put-button" style = "width:300px; position:relative; left:15%">PUT</button> 
-                                           
-                                            
+                                            <button name="Put" value="Put" class="ui button" id="put-button" style = "width:300px; position:relative; left:15%">PUT</button>
+
+
                                         </div>
-                                    
+
                         </div>
 
 
                 </div>
-                <div id="response-col" style="flex:1; padding:20px; background-color:black; color:whitesmoke; text-align:center; font-size:30px; border:2px solid rgb(161,240,15); display:flex; justify-content:center; flex-direction:column;">
+                <div id="response-col" style="flex:1; padding:20px; background-color:black; color:whitesmoke; text-align:center; font-size:30px; border:2px solid #546E7A; display:flex; justify-content:center; flex-direction:column;">
 
                 </div>
         </div>
 
 
         <textarea id="logs" class="ui raised segment" style="position:relative;top:10%;display:flex; flex-direction:row; width:100%; height:30%; background-color:black; color:white; align:center; font-size:20px; font-family:'Source Code Pro', monospace">
-                                                            LOGS 
+                                                            LOGS
         </textarea>
 
-        
-      
+
+
 
     </body>
-</html> 
+</html>

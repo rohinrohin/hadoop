@@ -9,7 +9,7 @@ import copy
 
 MASTER = "8080"
 LOG = []
-CLUSTER_STATUS = ""
+CLUSTER_STATUS = "INITIALIZING"
 
 def logger(log):
     LOG.append(log)
@@ -25,14 +25,20 @@ def start_zookeeper():
     @zk.DataWatch('/meta/master')
     def get_master(data, stat):
         global MASTER
-        MASTER = data.decode("utf-8")
-        logger("Current MASTER port: "+MASTER)
+        try:
+            MASTER = data.decode("utf-8")
+            logger("Current MASTER port: "+MASTER)
+        except Exception:
+            pass
 
     @zk.DataWatch('/meta/status')
     def cluster_status(data, stat):
         global CLUSTER_STATUS
-        CLUSTER_STATUS = data.decode("utf-8")
-        logger("CLUSTER STATUS: "+CLUSTER_STATUS)
+        try:
+            CLUSTER_STATUS = data.decode("utf-8")
+            logger("CLUSTER STATUS: "+CLUSTER_STATUS)
+        except Exception:
+            pass
 
 class LimitedSizeDict(OrderedDict):
   def __init__(self, *args, **kwds):
