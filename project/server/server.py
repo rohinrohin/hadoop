@@ -21,7 +21,7 @@ NUMBER_SERVERS = ""
 
 persistList = list()
 
-zk = KazooClient(hosts='192.168.31.233:2181')
+zk = KazooClient(hosts='127.0.0.1:2181')
 zk.start()
 
 def scheduleChildWatcher():
@@ -75,7 +75,7 @@ def scheduleChildWatcher():
 
             del config["mapper"][deadInstance] # remove now reduntant instance
             zk.set('/meta/config', json.dumps(config).encode('utf-8'))
-            persistList = nodelist.copy()
+        persistList = nodelist.copy()
 
 
 def scheduleSignals(a='default'):
@@ -116,7 +116,7 @@ def scheduleMasterKeySet():
 
     signal = {
        "type": "setkey",
-       "params": {"data": MasterService.keyRange["range"], "master": "true", "keyRanges": MasterService.keyRanges}
+       "params": {"data": MasterService.keyRange["range"], "master": "true", "keyRanges": MasterService.keyRanges, "backupPort": MasterService.keyRange["backupPort"]}
     }
 
     ss.send(json.dumps(signal))
@@ -252,6 +252,7 @@ class KeyStoreService(BaseService):
 
                 #print("Sleeping for all clients to awake. ")
                 #time.sleep(10)
+                payload["params"]["backupPort"] = self.keyRange["backupPort"]
                 print("Finished Sleeping")
                 print("ws://127.0.0.1:" + str(self.keyRange["backupPort"]) + "/backup")
                 success = 0
@@ -362,7 +363,17 @@ class MasterService(BaseService):
             if self.keyRange["status"] == "false":
                 res['status'] = str(codes.ERR_SERVER_NOT_INIT.name)
 
-            if payloadType == 'GET':
+            if payloadType == 'REINCARNATE':
+                print("REINCARNATION REQUEST RECIEVED")
+                deadInstancePort = payloadParams["deadPort"]
+                deadInstanceBackup = payloadParams["backupPort"]
+                print("HANDING OVER ", str(deadInstanceBackup) + "/backup", "TO ", deadInstancePort)
+                for key, value in self.keyRanges.items():
+                    if value == str(deadInstanceBackup)+"/backup":
+                        self.keyRanges[key] = deadInstancePort
+
+                print("REINCARNATION SUCCESSFUL")
+            elif payloadType == 'GET':
                 print(self.keyRange["range"])
                 keyRangeCheck = self.checkKeyRange(payloadParams['key'])
                 if keyRangeCheck == codes.SUCCESS:
@@ -422,7 +433,7 @@ class BackupKeyStoreService(BaseService):
 
     isMaster = {"flag": "false", "printString": ""}
     data = {}
-    keyRange = {"status": "false", "range": ""}
+    keyRange = {"status": "false", "range": "", "backupPort": ""}
     keyRanges = {}
 
     def checkKeyRange(self, key):
@@ -453,6 +464,7 @@ class BackupKeyStoreService(BaseService):
                 print("KEYSET RECIEVED")
                 self.keyRange["range"] = payloadParams['data']
                 self.keyRange["status"] = "true"
+                self.keyRange["backupPort"] = payloadParams["backupPort"]
 
                 if "master" in payloadParams:
                     self.isMaster["printString"] = "[MASTER-BACKUP]"
@@ -625,6 +637,7 @@ print(children)
 portno = 0
 portnum = 0
 ranges = []
+serverDied = False
 
 if len(children) == 1:
         portno = 8080
@@ -676,47 +689,80 @@ if len(children) == 1:
 
 else:
     try:
+        print("getting /meta/config")
         config, _  = zk.get('/meta/config')
+        print("got /meta/config")
+        # dead server detected
+        # REINCARNATION MODE
+        serverDied = True
         config = json.loads(config.decode("utf-8"))
-    except Exception as e:
-        pass
-    # if config["lastDead"]["portno"] != -1:
-    #     # some server died
-    #     portno = config["lastDead"]["portno"]
-    #     masterDied = True if portno == 8080 else False
-    #     portbackup = config["lastDead"]["backup"]
-    #     print("REPLACEMENT SERVER FOR ", "[master]: " if masterDied else "[slave]: ",portno)
-    #     if masterDied:
-    #         config[currInstance] = portno # remap new instance
-    #         payload = {
-    #             type:"REPLICA"
-    #         }
-    #         print("ws://127.0.0.1:" + str(portbackup) + "/backup")
-    #         ss = create_connection("ws://localhost:" + str(self.keyRange["backupPort"]) + "/backup")
-    #         ss.send(json.dumps(payload))
-    #         response = ss.recv()
-    #         response = json.loads(response)
-    #
-    #         MasterService.keyRange = response["keyRange"]
-    #         MasterService.keyRanges = response["keyRanges"]
-    #         MasterService.data = response["data"]
-    #
-    #         ss.close()
-    #
-    #     else:
-    #         pass
-    #
-    #     zk.set('/meta/config', json.dumps(config).encode('utf-8'))
 
-    printout("[SLAVE]", YELLOW)
-    print("SLAVE INIT")
-    portno, _ = zk.get('/meta/lastport')
-    portno = int(portno.decode('utf-8')) + 1
-    zk.set('/meta/lastport', str(portno).encode())
-    printout("[SLAVE]", YELLOW)
-    print("LISTENING FOR KEYSET")
-    print("Child watcher scheduled")
-    scheduleChildWatcher()
+        if config["lastDead"]["portno"] != -1:
+            portno = config["lastDead"]["portno"]
+            masterDied = True if portno == 8080 else False
+            portbackup = config["lastDead"]["backup"]
+
+
+            print("REINCARNATION SERVER BOOTING FOR ", "[master]: " if masterDied else "[slave]: ", portno)
+            payload = {
+                "type":"REPLICA",
+                "params": ""
+            }
+            print("ws://127.0.0.1:" + str(portbackup) + "/backup")
+            ss = create_connection("ws://localhost:" + str(portbackup) + "/backup")
+            ss.send(json.dumps(payload))
+            response = ss.recv()
+            ss.close()
+            response = json.loads(response)
+
+            if masterDied:
+
+                MasterService.keyRange = response["data"]["keyRange"]
+                MasterService.keyRanges = response["keyRanges"]
+                MasterService.data = response["data"]
+
+            else:
+
+                KeyStoreService.keyRange = response["data"]["keyRange"]
+                KeyStoreService.data = response["data"]["data"]
+                payload = {
+                    "type": "REINCARNATE",
+                    "params": {
+                        "deadPort": config["lastDead"]["portno"],
+                        "backupPort": config["lastDead"]["backup"]
+                    }
+                }
+
+                masterPort, _ = zk.get("/meta/master")
+                masterPort = masterPort.decode("utf-8")
+                ss = create_connection("ws://localhost:" + masterPort + "/master")
+                ss.send(json.dumps(payload))
+                #response = ss.recv()
+                ss.close()
+                print("SERVER BOOTED")
+
+                pass
+
+            config["mapper"][currInstance] = portno # remap new instance
+            config["lastDead"] = {
+                "backup": -1,
+                "portno": -1
+            }
+            zk.set('/meta/config', json.dumps(config).encode('utf-8'))
+
+    except Exception as e:
+        print("Failed to get /meta/config")
+
+    if not serverDied:
+        printout("[SLAVE]", YELLOW)
+        print("SLAVE INIT")
+        portno, _ = zk.get('/meta/lastport')
+        portno = int(portno.decode('utf-8')) + 1
+        zk.set('/meta/lastport', str(portno).encode())
+        printout("[SLAVE]", YELLOW)
+        print("LISTENING FOR KEYSET")
+        print("Child watcher scheduled")
+        scheduleChildWatcher()
 
 # set port number to retrieve later
 zk.set(currInstance, "{0}".format(str(portno)).encode('utf-8'))
