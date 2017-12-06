@@ -1,8 +1,9 @@
 import os
-from client import send_request_json
+from client import send_request_json, start_zookeeper
 from flask import Flask,render_template, request,json
 
 app = Flask(__name__)
+start_zookeeper()
 
 @app.route('/')
 def hello():
@@ -13,12 +14,12 @@ def requestter():
     req = request.get_json(force=True)
     response=send_request_json(req)
     print({'status':'OK', "request": req})
-   
+
     #response = {
-    #     "status": "SUCCESS", 
-    #     "data": "hello", 
-    #     "logger": ["Server connected to Master", 
-    #     "Master key not responsible", 
+    #     "status": "SUCCESS",
+    #     "data": "hello",
+    #     "logger": ["Server connected to Master",
+    #     "Master key not responsible",
     #     "Hello"]
     # }
     #return render_template('client_input.html', resp=response)

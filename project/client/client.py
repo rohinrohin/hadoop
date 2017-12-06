@@ -126,6 +126,7 @@ def connect_to_server(request, port_num, isMaster, useCache=True):
             return connect_to_server(request, MASTER, isMaster=True)
 
     logger("Current Cache:" + json.dumps(client_cache))  #if the master contains the key. 9001 is the current static master address
+    logger(" ---------------")
     LOG_COPY = copy.deepcopy(LOG)
     result = {
         'status': result['status'],
@@ -142,7 +143,6 @@ def send_request(request):
         'key': request[1],
         'value': ''.join(request[2:]) if len(request) >= 3 else ''
     }
-    start_zookeeper()
     print("Client's request: ",request)
     response = connect_to_server(request, MASTER, isMaster=True)
     print(response)
@@ -155,10 +155,10 @@ def send_request_json(request):
         'key': request['key'],
         'value': request['value'] if 'value' in request else ''
     }
-    start_zookeeper()
     logger("Client Request: " + json.dumps(request))
+
     result = connect_to_server(request, MASTER, isMaster=True)
-    logger(" ---------------")
+
 
     return result
 
@@ -166,6 +166,6 @@ def get_cluster_status():
     return CLUSTER_STATUS
 
 if __name__ == '__main__':
-
+    start_zookeeper()
     while True:
         send_request(input())

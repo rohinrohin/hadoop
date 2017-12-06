@@ -53,7 +53,7 @@ def scheduleChildWatcher():
             deadInstanceBackup = 8080 + ((abs(deadInstancePort-8080) +1) % config["numOfServers"])
             if deadInstancePort == 8080:
                 # master died
-                zk.set('/meta/master', str(deadInstanceBackup)+'/backup'.encode('utf-8'))
+                zk.set('/meta/master', (str(deadInstanceBackup)+'/backup').encode('utf-8'))
                 if portno == deadInstanceBackup:
                     # master backup slave
                     print("NOTIFICATION:", deadSet, " [master] died. ")
