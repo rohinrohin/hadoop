@@ -278,7 +278,15 @@ class KeyStoreService(BaseService):
             if self.keyRange["status"] == "false":
                 res['status'] = str(codes.ERR_SERVER_NOT_INIT.name)
 
-            if payloadType == 'GET':
+            if payloadType == 'REPLICA':
+                #res['data'] = self.data
+                res['data'] = {
+                    'keyRange': self.keyRange,
+                    'data': self.data
+                }
+                res['status'] = str(codes.SUCCESS.name)
+
+            elif payloadType == 'GET':
                 firstChar = ord(payloadParams['key'][0])
                 start, end = self.keyRange['range'].split('-')
                 start, end = int(start), int(end)
@@ -373,6 +381,16 @@ class MasterService(BaseService):
                         self.keyRanges[key] = deadInstancePort
 
                 print("REINCARNATION SUCCESSFUL")
+
+            elif payloadType == 'REPLICA':
+                #res['data'] = self.data
+                res['data'] = {
+                    'keyRange': self.keyRange,
+                    'keyRanges': self.keyRanges,
+                    'data': self.data
+                }
+                res['status'] = str(codes.SUCCESS.name)
+
             elif payloadType == 'GET':
                 print(self.keyRange["range"])
                 keyRangeCheck = self.checkKeyRange(payloadParams['key'])
