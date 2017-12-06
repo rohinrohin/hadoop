@@ -44,6 +44,7 @@ def scheduleChildWatcher():
 
         if (len(deadSet) and len(persistSet)>len(childSet)):
             # something died
+            zk.set('/meta/status', 'UNSTABLE'.encode('utf-8'))
             config, _ = zk.get("/meta/config")
             config = json.loads(config.decode("utf-8"))
             print(deadSet)
@@ -52,6 +53,7 @@ def scheduleChildWatcher():
             deadInstanceBackup = 8080 + ((abs(deadInstancePort-8080) +1) % config["numOfServers"])
             if deadInstancePort == 8080:
                 # master died
+                zk.set('/meta/master', str(deadInstanceBackup)+'/backup'.encode('utf-8'))
                 if portno == deadInstanceBackup:
                     # master backup slave
                     print("NOTIFICATION:", deadSet, " [master] died. ")
@@ -129,6 +131,7 @@ def scheduleMasterKeySet():
 
 def clusterStatusUp():
     print(" ------------- CLUSTER STATUS UP ----------------- ")
+    zk.set('/meta/status', 'STABLE'.encode('utf-8'))
 
 def signalScheduler():
     s.enter(2, 1, scheduleMasterKeySet)
