@@ -84,9 +84,9 @@ def scheduleChildWatcher():
                     config["lastDead"]["portno"] = deadInstancePort
                     config["lastDead"]["backup"] = deadInstanceBackup
                     # set keyrange for backup server
-                    for key, value in MasterService.keyRanges.items():
+                    for key, value in MasterService.keyRanges["ranges"].items():
                         if value == deadInstancePort:
-                            MasterService.keyRanges[key] = str(deadInstanceBackup) + "/backup"
+                            MasterService.keyRanges["ranges"][key] = str(deadInstanceBackup) + "/backup"
 
                     printout("[SLAVE-BACKUP]", MAGENTA)
                     print("SETTING CONFIG: ", config)
